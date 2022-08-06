@@ -116,9 +116,7 @@ namespace IlyfairyLib.Unsafe
             ref byte objRawDataPtr = ref GetObjectRawData(obj);
             fixed (void* p = &objRawDataPtr)
             {
-                var rawData = new IntPtr(p);
-                rawData -= sizeof(IntPtr);
-                return *(IntPtr*)(rawData);
+                return *(IntPtr*)(((byte*)p) - sizeof(IntPtr));
             }
         }
         /// <summary>
