@@ -163,6 +163,21 @@ namespace IlyfairyLib.Unsafe
             }
         }
         /// <summary>
+        /// 修改对象Handle
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="type"></param>
+        public static unsafe void ChangeObjectHandle(object obj, Type type)
+        {
+            ref byte objRawDataPtr = ref GetObjectRawData(obj);
+            fixed (void* p = &objRawDataPtr)
+            {
+                var rawData = new IntPtr(p);
+                rawData -= sizeof(IntPtr);
+                *(IntPtr*)(rawData) = GetObjectHandle(type);
+            }
+        }
+        /// <summary>
         /// 创建一个空的对象
         /// </summary>
         /// <param name="type"></param>
