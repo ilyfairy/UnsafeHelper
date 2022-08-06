@@ -109,7 +109,6 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 获取对象句柄(对象头)
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="obj"></param>
         /// <returns></returns>
         public static unsafe IntPtr GetObjectHandle(object obj)
