@@ -26,18 +26,9 @@ namespace IlyfairyLib.Unsafe
             GetRawData = RuntimeHelpersType.GetMethod("GetRawData", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<GetRawDataDelegate>();
             Memmove = BufferType.GetMethods(BindingFlags.NonPublic | BindingFlags.Static).Where(v => v.Name == "Memmove").FirstOrDefault((m) => m.GetGenericArguments().Length == 0).CreateDelegate<MemoryCopyDelegate>();
         }
+
         /// <summary>
-        /// 克隆至空的对象
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        public static T CloneEmptyObject<T>(T obj)
-        {
-            return (T?)AllocateUninitializedClone(obj);
-        }
-        /// <summary>
-        /// 获取对象大小
+        /// 获取对象原始数据大小
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
@@ -106,6 +97,16 @@ namespace IlyfairyLib.Unsafe
             return newObj;
         }
         /// <summary>
+        /// 克隆至空的对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public static T CloneEmptyObject<T>(T obj)
+        {
+            return (T?)AllocateUninitializedClone(obj);
+        }
+        /// <summary>
         /// 获取对象句柄(对象头)
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -170,25 +171,13 @@ namespace IlyfairyLib.Unsafe
         /// <param name="type"></param>
         /// <param name="size">大小(包含Handle)</param>
         /// <returns></returns>
-        public static unsafe object? CreateEmptyObject(Type type, int size)
+        public static unsafe object CreateEmptyObject(Type type, int size)
         {
             object[] obj = new object[1];
             IntPtr p = RuntimeHelpers.AllocateTypeAssociatedMemory(type, size);
             var span = GetObjectRawDataAsSpan<IntPtr>(obj);
             *((IntPtr*)p) = GetObjectHandle(type);
             span[1] = p;
-            try
-            {
-                var t = obj[0].GetType();
-                if (obj[0] == null)
-                {
-                    return null;
-                }
-            }
-            catch (Exception)
-            {
-
-            }
             return obj[0];
         }
     }
