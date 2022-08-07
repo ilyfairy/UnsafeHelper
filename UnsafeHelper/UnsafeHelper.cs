@@ -179,7 +179,7 @@ namespace IlyfairyLib.Unsafe
             }
         }
         /// <summary>
-        /// 创建一个空的对象
+        /// 创建一个空的对象<br/>创建的对象暂时不可释放
         /// </summary>
         /// <param name="type"></param>
         /// <param name="size">大小(包含Handle)</param>
@@ -265,6 +265,12 @@ namespace IlyfairyLib.Unsafe
                 return new Span<T>(p + 8 + offset, len);
             }
         }
+        /// <summary>
+        /// 获取实例字段
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static FieldInfo[] GetInstanceFields(Type type) => type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
     }
 
 }
