@@ -257,7 +257,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe Span<T> MultiDimensionalAsSpan<T>(Array multiArray, int dimension)
         {
-            if (dimension <= 0) dimension = 1;
+            if (dimension <= 1) dimension = 0;
             ref byte a = ref GetObjectRawData(multiArray);
             fixed (byte* p = &a)
             {
