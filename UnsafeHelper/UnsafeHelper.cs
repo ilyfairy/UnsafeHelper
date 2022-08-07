@@ -193,7 +193,7 @@ namespace IlyfairyLib.Unsafe
             return obj[0];
         }
         /// <summary>
-        /// 将字符串转换成Span<char>
+        /// 将字符串转换成 Span&lt;char&gt;
         /// </summary>
         /// <param name="text">字符串</param>
         /// <returns></returns>
