@@ -249,13 +249,13 @@ namespace IlyfairyLib.Unsafe
             }
         }
         /// <summary>
-        /// 将多维数组转换为Span
+        /// 将数组转换为Span
         /// </summary>
         /// <typeparam name="T">数组元素类型</typeparam>
         /// <param name="multiArray">多维数组</param>
         /// <param name="dimension">维度</param>
         /// <returns></returns>
-        public static unsafe Span<T> MultiDimensionalAsSpan<T>(this Array multiArray, int dimension)
+        public static unsafe Span<T> AsSpan<T>(this Array multiArray, int dimension)
         {
             if (dimension <= 1) dimension = 0;
             ref byte a = ref GetObjectRawData(multiArray);
