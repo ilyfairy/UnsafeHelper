@@ -157,10 +157,9 @@ namespace IlyfairyLib.Unsafe
         public static unsafe void ChangeObjectHandle(object obj, IntPtr handle)
         {
             ref byte objRawDataPtr = ref GetObjectRawData(obj);
-            fixed (void* p = &objRawDataPtr)
+            fixed (byte* p = &objRawDataPtr)
             {
-                var rawData = new IntPtr(p);
-                rawData -= sizeof(IntPtr);
+                var rawData = p - sizeof(IntPtr);
                 *(IntPtr*)(rawData) = handle;
             }
         }
