@@ -208,36 +208,43 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj1"></param>
         /// <param name="obj2"></param>
         /// <returns></returns>
-        public static bool CompareRaw(object obj1, object obj2)
+        public static unsafe bool CompareRaw(object obj1, object obj2)
         {
             UIntPtr obj1size = UnsafeHelper.GetObjectRawDataSize(obj1);
             UIntPtr obj2size = UnsafeHelper.GetObjectRawDataSize(obj2);
             if (obj1size != obj2size) return false;
-            uint lenByte = (uint)obj1size;
 
-            if (lenByte % 8 == 0)
+            ulong lenByte = (uint)obj1size;
+            ref byte r1 = ref GetRawData(obj1);
+            ref byte r2 = ref GetRawData(obj2);
+
+            fixed (void* p1 = &r1, p2 = &r2)
             {
-                var span64A = UnsafeHelper.GetObjectRawDataAsSpan<Int64>(obj1);
-                var span64B = UnsafeHelper.GetObjectRawDataAsSpan<Int64>(obj2);
-                return span64A.SequenceEqual(span64B);
-            }
-            if (lenByte % 4 == 0)
-            {
-                var span32A = UnsafeHelper.GetObjectRawDataAsSpan<Int32>(obj1);
-                var span32B = UnsafeHelper.GetObjectRawDataAsSpan<Int32>(obj2);
-                return span32A.SequenceEqual(span32B);
-            }
-            if (lenByte % 2 == 0)
-            {
-                var span16A = UnsafeHelper.GetObjectRawDataAsSpan<Int16>(obj1);
-                var span16B = UnsafeHelper.GetObjectRawDataAsSpan<Int16>(obj2);
-                return span16A.SequenceEqual(span16B);
-            }
-            else
-            {
-                var span8A = UnsafeHelper.GetObjectRawDataAsSpan<Byte>(obj1);
-                var span8B = UnsafeHelper.GetObjectRawDataAsSpan<Byte>(obj2);
-                return span8A.SequenceEqual(span8B);
+                if (lenByte % 8 == 0)
+                {
+                    var a = new Span<Int64>(p1, (int)(lenByte / 8));
+                    var b = new Span<Int64>(p2, (int)(lenByte / 8));
+                    return a.SequenceEqual(b);
+                }
+                else if (lenByte % 8 == 0)
+                {
+                    var a = new Span<Int32>(p1, (int)(lenByte / 4));
+                    var b = new Span<Int32>(p2, (int)(lenByte / 4));
+                    return a.SequenceEqual(b);
+                }
+                else if (lenByte % 8 == 0)
+                {
+                    var a = new Span<Int16>(p1, (int)(lenByte / 2));
+                    var b = new Span<Int16>(p2, (int)(lenByte / 2));
+                    return a.SequenceEqual(b);
+                }
+                else
+                {
+                    var a = new Span<Byte>(p1, (int)lenByte);
+                    var b = new Span<Byte>(p2, (int)lenByte);
+                    return a.SequenceEqual(b);
+                }
+
             }
         }
     }
