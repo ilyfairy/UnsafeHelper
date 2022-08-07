@@ -192,9 +192,14 @@ namespace IlyfairyLib.Unsafe
             span[1] = p;
             return obj[0];
         }
+        /// <summary>
+        /// 将字符串转换成Span<char>
+        /// </summary>
+        /// <param name="text">字符串</param>
+        /// <returns></returns>
         public static unsafe Span<char> AsSpanEx(this string text)
         {
-            return new Span<char>((GetObjectRawDataAddress(text)+4).ToPointer(), text.Length);
+            return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
         }
     }
 
