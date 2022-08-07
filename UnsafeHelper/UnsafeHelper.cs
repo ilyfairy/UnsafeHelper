@@ -68,7 +68,8 @@ namespace IlyfairyLib.Unsafe
             ref byte first = ref GetRawData(obj);
             fixed (void* p = &first)
             {
-                return new Span<T>(p, (int)GetObjectRawDataSize(obj) / sizeof(T));
+                ulong size = (ulong)GetObjectRawDataSize(obj) / (ulong)sizeof(T);
+                return new Span<T>(p, (int)size);
             }
         }
         /// <summary>
@@ -200,6 +201,44 @@ namespace IlyfairyLib.Unsafe
         public static unsafe Span<char> AsSpanEx(this string text)
         {
             return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
+        }
+        /// <summary>
+        /// 比较两个对象的原始数据是否相等<br/>不比较类型
+        /// </summary>
+        /// <param name="obj1"></param>
+        /// <param name="obj2"></param>
+        /// <returns></returns>
+        public static bool CompareRaw(object obj1, object obj2)
+        {
+            UIntPtr obj1size = UnsafeHelper.GetObjectRawDataSize(obj1);
+            UIntPtr obj2size = UnsafeHelper.GetObjectRawDataSize(obj2);
+            if (obj1size != obj2size) return false;
+            uint lenByte = (uint)obj1size;
+
+            if (lenByte % 8 == 0)
+            {
+                var span64A = UnsafeHelper.GetObjectRawDataAsSpan<Int64>(obj1);
+                var span64B = UnsafeHelper.GetObjectRawDataAsSpan<Int64>(obj2);
+                return span64A.SequenceEqual(span64B);
+            }
+            if (lenByte % 4 == 0)
+            {
+                var span32A = UnsafeHelper.GetObjectRawDataAsSpan<Int32>(obj1);
+                var span32B = UnsafeHelper.GetObjectRawDataAsSpan<Int32>(obj2);
+                return span32A.SequenceEqual(span32B);
+            }
+            if (lenByte % 2 == 0)
+            {
+                var span16A = UnsafeHelper.GetObjectRawDataAsSpan<Int16>(obj1);
+                var span16B = UnsafeHelper.GetObjectRawDataAsSpan<Int16>(obj2);
+                return span16A.SequenceEqual(span16B);
+            }
+            else
+            {
+                var span8A = UnsafeHelper.GetObjectRawDataAsSpan<Byte>(obj1);
+                var span8B = UnsafeHelper.GetObjectRawDataAsSpan<Byte>(obj2);
+                return span8A.SequenceEqual(span8B);
+            }
         }
     }
 
