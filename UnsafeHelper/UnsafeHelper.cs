@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -245,6 +246,24 @@ namespace IlyfairyLib.Unsafe
                     return a.SequenceEqual(b);
                 }
 
+            }
+        }
+        /// <summary>
+        /// 将多维数组转换为Span
+        /// </summary>
+        /// <typeparam name="T">数组元素类型</typeparam>
+        /// <param name="multiArray">多维数组</param>
+        /// <param name="dimension">维度</param>
+        /// <returns></returns>
+        public static unsafe Span<T> MultiDimensionalAsSpan<T>(Array multiArray, int dimension)
+        {
+            if (dimension <= 0) dimension = 1;
+            ref byte a = ref GetObjectRawData(multiArray);
+            fixed (byte* p = &a)
+            {
+                var len = multiArray.Length;
+                var offset = dimension * 8;
+                return new Span<T>(p + 8 + offset, len);
             }
         }
     }
