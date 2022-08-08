@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security;
 
 namespace IlyfairyLib.Unsafe
 {
@@ -35,6 +36,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static UIntPtr GetObjectRawDataSize(object obj)
         {
+            //return Api.GetRawObjectDataSize(obj);
             return GetRawObjectDataSize(obj);
         }
         /// <summary>
@@ -42,8 +44,10 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
+        [SecuritySafeCritical]
         public static ref byte GetObjectRawData(object obj)
         {
+            //return ref Api.GetRawData(obj);
             return ref GetRawData(obj);
         }
         /// <summary>
@@ -54,6 +58,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe UIntPtr GetObjectRawDataAddress(object obj)
         {
             ref byte first = ref GetRawData(obj);
+            //ref byte first = ref Api.GetRawData(obj);
             fixed (void* p = &first)
             {
                 return new UIntPtr(p);
@@ -66,6 +71,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe Span<T> GetObjectRawDataAsSpan<T>(object obj) where T : unmanaged
         {
+            //ref byte first = ref Api.GetRawData(obj);
             ref byte first = ref GetRawData(obj);
             fixed (void* p = &first)
             {
