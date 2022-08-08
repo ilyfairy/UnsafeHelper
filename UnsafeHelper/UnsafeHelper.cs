@@ -95,12 +95,12 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static T Clone<T>(T obj)
+        public static T Clone<T>(this T obj)
         {
-            T newObj = UnsafeHelper.CloneEmptyObject(obj); //克隆对象
-            UIntPtr size = UnsafeHelper.GetObjectRawDataSize(obj); //长度
-            ref byte oldRef = ref UnsafeHelper.GetObjectRawData(obj); //旧的地址引用
-            ref byte newRef = ref UnsafeHelper.GetObjectRawData(newObj); //新的地址引用
+            T newObj = CloneEmptyObject(obj); //克隆对象
+            UIntPtr size = GetObjectRawDataSize(obj); //长度
+            ref byte oldRef = ref GetObjectRawData(obj); //旧的地址引用
+            ref byte newRef = ref GetObjectRawData(newObj); //新的地址引用
             MemoryCopy(ref newRef, ref oldRef, size);
             return newObj;
         }
