@@ -277,6 +277,21 @@ namespace IlyfairyLib.Unsafe
         /// <param name="type"></param>
         /// <returns></returns>
         public static FieldInfo[] GetInstanceFields(Type type) => type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+        /// <summary>
+        /// 将父类转换成子类
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="parentObj">父类/基类</param>
+        /// <param name="childObj">子类/派生类</param>
+        /// <returns></returns>
+        public static void ParentToChildObject<TParent,TChild>(TParent parentObj, ref TChild childObj)
+        {
+            var old = GetObjectRawDataAsSpan<byte>(parentObj);
+            ref byte data = ref GetObjectRawData(childObj);
+            MemoryCopy(ref data, ref old[0], (UIntPtr)old.Length);
+        }
+
     }
 
 }
