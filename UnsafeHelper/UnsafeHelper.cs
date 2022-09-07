@@ -245,6 +245,7 @@ namespace IlyfairyLib.Unsafe
             var offset = dimension * 8;
             return new Span<T>((byte*)a + 8 + offset, len);
         }
+
         /// <summary>
         /// 获取实例字段
         /// </summary>
