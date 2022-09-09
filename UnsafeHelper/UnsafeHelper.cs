@@ -7,6 +7,9 @@ using System.Security;
 
 namespace IlyfairyLib.Unsafe
 {
+    /// <summary>
+    /// Unsafe的工具方法
+    /// </summary>
     public static class UnsafeHelper
     {
         private static readonly Type RuntimeHelpersType;
@@ -51,7 +54,6 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 获取引用对象在堆中的地址
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="obj"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,7 +105,6 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 获取对象原始数据大小
         /// </summary>
-        /// <param name="obj"></param>
         /// <returns></returns>
         public static unsafe long GetObjectRawDataSize<T>() where T : class
         {
@@ -225,7 +226,6 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 申请一个对象,通过FreeObject释放
         /// </summary>
-        /// <param name="type"></param>
         /// <param name="size">大小(包含Handle)</param>
         /// <returns></returns>
         public static unsafe T AllocObject<T>(nuint size)
@@ -239,8 +239,6 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 申请一个对象,通过FreeObject释放
         /// </summary>
-        /// <param name="type"></param>
-        /// <param name="size">大小(包含Handle)</param>
         /// <returns></returns>
         public static unsafe T AllocObject<T>() where T : class
         {
@@ -332,7 +330,6 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 父类数据复制到子类
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="parentObj">父类/基类</param>
         /// <param name="childObj">子类/派生类</param>
         /// <returns></returns>
@@ -380,7 +377,7 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 获取字段偏移
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <param name="type"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
         public static unsafe int GetFieldOffset(Type type, string fieldName)
