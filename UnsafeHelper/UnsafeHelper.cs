@@ -278,13 +278,13 @@ namespace IlyfairyLib.Unsafe
                 var b = new Span<Int64>(p2, (int)(lenByte / 8));
                 return a.SequenceEqual(b);
             }
-            else if (lenByte % 8 == 0)
+            else if (lenByte % 4 == 0)
             {
                 var a = new Span<Int32>(p1, (int)(lenByte / 4));
                 var b = new Span<Int32>(p2, (int)(lenByte / 4));
                 return a.SequenceEqual(b);
             }
-            else if (lenByte % 8 == 0)
+            else if (lenByte % 2 == 0)
             {
                 var a = new Span<Int16>(p1, (int)(lenByte / 2));
                 var b = new Span<Int16>(p2, (int)(lenByte / 2));
