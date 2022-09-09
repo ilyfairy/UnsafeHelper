@@ -11,7 +11,6 @@ namespace IlyfairyLib.Unsafe
     {
         private static readonly Type RuntimeHelpersType;
         private static readonly Func<object?, object?> AllocateUninitializedClone;
-        private static readonly Func<object?, UIntPtr> GetRawObjectDataSize;
 
         private delegate ref byte GetRawDataDelegate(object obj);
 
@@ -19,7 +18,6 @@ namespace IlyfairyLib.Unsafe
         {
             RuntimeHelpersType = typeof(RuntimeHelpers);
             AllocateUninitializedClone = RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Func<object, object>>()!;
-            GetRawObjectDataSize = RuntimeHelpersType.GetMethod("GetRawObjectDataSize", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Func<object, UIntPtr>>()!;
         }
 
         /// <summary>
@@ -43,7 +41,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe IntPtr GetObjectAddress(object val)
         {
             var r = __makeref(val);
-            return *(IntPtr*)*((IntPtr*)&r);
+            return *(IntPtr*)*(IntPtr*)&r;
         }
 
         /// <summary>
@@ -73,10 +71,21 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static UIntPtr GetObjectRawDataSize<T>(T obj)
+        public static unsafe long GetObjectRawDataSize<T>(T obj)
         {
-            return GetRawObjectDataSize(obj);
-            //return System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
+            if (obj is ValueType)
+            {
+                IntPtr valueTypeTable = typeof(T).TypeHandle.Value;
+                return *(uint*)(valueTypeTable + 4) - 2 * sizeof(IntPtr);
+            }
+            if (obj == null) return 0;
+
+            IntPtr objP = GetObjectAddress(obj);
+            IntPtr rawDataP = objP + sizeof(IntPtr);
+            IntPtr objTable = *(IntPtr*)objP;
+
+            long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
+            return size;
         }
 
         /// <summary>
@@ -89,7 +98,7 @@ namespace IlyfairyLib.Unsafe
         {
             T? newObj = CloneEmptyObject(obj); //克隆对象
             if (newObj == null) return null;
-            UIntPtr size = GetObjectRawDataSize(obj); //长度
+            long size = GetObjectRawDataSize(obj); //长度
             IntPtr oldRef = GetObjectRawDataAddress(obj); //旧的地址引用
             IntPtr newRef = GetObjectRawDataAddress(newObj); //新的地址引用
             Buffer.MemoryCopy((void*)oldRef, (void*)newRef, (ulong)size, (ulong)size);
@@ -119,23 +128,23 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 输出大写地址字符串, 不包含0x
+        /// 返回地址字符串
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
         public static unsafe string ToAddress(this UIntPtr p)
         {
-            return p.ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
+            return "0x" + p.ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
         }
 
         /// <summary>
-        /// 输出大写地址字符串, 不包含0x
+        /// 返回地址字符串
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
         public static unsafe string ToAddress(this IntPtr p)
         {
-            return p.ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
+            return "0x" + p.ToString("X").PadLeft(sizeof(IntPtr) * 2, '0');
         }
 
         /// <summary>
@@ -195,8 +204,8 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe bool CompareRaw(object obj1, object obj2)
         {
-            UIntPtr obj1size = UnsafeHelper.GetObjectRawDataSize(obj1);
-            UIntPtr obj2size = UnsafeHelper.GetObjectRawDataSize(obj2);
+            long obj1size = UnsafeHelper.GetObjectRawDataSize(obj1);
+            long obj2size = UnsafeHelper.GetObjectRawDataSize(obj2);
             if (obj1size != obj2size) return false;
 
             ulong lenByte = (uint)obj1size;
@@ -241,8 +250,8 @@ namespace IlyfairyLib.Unsafe
         {
             if (dimension <= 1) dimension = 0;
             IntPtr a = GetObjectRawDataAddress(multiArray);
-            var len = multiArray.Length;
-            var offset = dimension * 8;
+            int len = multiArray.Length;
+            int offset = dimension * 8;
             return new Span<T>((byte*)a + 8 + offset, len);
         }
 
