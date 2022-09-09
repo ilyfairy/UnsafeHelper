@@ -448,7 +448,7 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 设置结构体字段的值
+        /// 设置Struct字段的值
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <typeparam name="TValue"></typeparam>
