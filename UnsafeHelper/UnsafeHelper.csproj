@@ -9,6 +9,7 @@
     <Version>1.0.0</Version>
     <Authors>ilyfairy</Authors>
     <Description>C#不安全方法</Description>
+	<GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
 </Project>

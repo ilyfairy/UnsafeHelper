@@ -11,7 +11,7 @@ namespace IlyfairyLib.Unsafe
     {
         private static readonly Type RuntimeHelpersType;
         private static readonly Func<object?, object?> AllocateUninitializedClone;
-        private static int m_fieldHandle_offset;
+        private static readonly int m_fieldHandle_offset;
 
         private delegate ref byte GetRawDataDelegate(object obj);
 
