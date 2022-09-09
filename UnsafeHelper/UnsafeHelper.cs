@@ -82,6 +82,18 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
+        /// 获取对象原始数据大小
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public static unsafe long GetObjectRawDataSize<T>() where T : class
+        {
+            IntPtr objTable = typeof(T).TypeHandle.Value;
+            long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr);
+            return size;
+        }
+
+        /// <summary>
         /// 获取结构体大小
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -171,19 +183,55 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 创建一个空的对象<br/>创建的对象暂时不可释放
+        /// 申请一个对象,通过FreeObject释放
         /// </summary>
         /// <param name="type"></param>
         /// <param name="size">大小(包含Handle)</param>
         /// <returns></returns>
-        public static unsafe object CreateEmptyObject(Type type, int size)
+        public static unsafe object AllocObject(Type type, nuint size)
         {
-            object[] obj = new object[1];
-            IntPtr p = RuntimeHelpers.AllocateTypeAssociatedMemory(type, size);
-            var span = GetObjectRawDataAsSpan<IntPtr>(obj);
-            *((IntPtr*)p) = GetObjectHandle(type);
-            span[1] = p;
-            return obj[0];
+            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(size);
+            p[0] = type.TypeHandle.Value;
+            var obj = System.Runtime.CompilerServices.Unsafe.Read<object>(&p);
+            return obj;
+        }
+
+        /// <summary>
+        /// 申请一个对象,通过FreeObject释放
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="size">大小(包含Handle)</param>
+        /// <returns></returns>
+        public static unsafe T AllocObject<T>(nuint size)
+        {
+            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(size);
+            p[0] = typeof(T).TypeHandle.Value;
+            var obj = System.Runtime.CompilerServices.Unsafe.Read<T>(&p);
+            return obj;
+        }
+
+        /// <summary>
+        /// 申请一个对象,通过FreeObject释放
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="size">大小(包含Handle)</param>
+        /// <returns></returns>
+        public static unsafe T AllocObject<T>() where T : class
+        {
+            nuint size = (nuint)(GetObjectRawDataSize<T>() + sizeof(nint));
+            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(size);
+            p[0] = typeof(T).TypeHandle.Value;
+            var obj = System.Runtime.CompilerServices.Unsafe.Read<T>(&p);
+            return obj;
+        }
+
+        /// <summary>
+        /// 释放AllocObject创建的对象
+        /// </summary>
+        /// <param name="obj"></param>
+        public static unsafe void FreeObject(object obj)
+        {
+            NativeMemory.Free((void*)GetObjectAddress(obj));
         }
 
         /// <summary>
