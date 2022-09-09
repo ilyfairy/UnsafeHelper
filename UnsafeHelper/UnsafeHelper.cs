@@ -86,7 +86,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static unsafe int GetStructSize<T>() where T : struct => System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
+        public static int GetStructSize<T>() where T : struct => System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
 
         /// <summary>
         /// 克隆一个对象
