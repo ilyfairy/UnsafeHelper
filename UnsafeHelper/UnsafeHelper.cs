@@ -71,22 +71,22 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static unsafe long GetObjectRawDataSize<T>(T obj)
+        public static unsafe long GetObjectRawDataSize<T>(this T obj) where T : class
         {
-            if (obj is ValueType)
-            {
-                IntPtr valueTypeTable = typeof(T).TypeHandle.Value;
-                return *(uint*)(valueTypeTable + 4) - 2 * sizeof(IntPtr);
-            }
-            if (obj == null) return 0;
-
+            if (obj == null) return -1;
             IntPtr objP = GetObjectAddress(obj);
             IntPtr rawDataP = objP + sizeof(IntPtr);
             IntPtr objTable = *(IntPtr*)objP;
-
             long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
         }
+
+        /// <summary>
+        /// 获取结构体大小
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static unsafe int GetStructSize<T>() where T : struct => System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
 
         /// <summary>
         /// 克隆一个对象
@@ -274,7 +274,7 @@ namespace IlyfairyLib.Unsafe
             IntPtr old = GetObjectRawDataAddress(parentObj);
             IntPtr data = GetObjectRawDataAddress(childObj);
 
-            var len = GetObjectRawDataSize(old);
+            long len = GetObjectRawDataSize(parentObj);
 
             Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
         }
