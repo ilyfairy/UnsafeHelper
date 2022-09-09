@@ -167,7 +167,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe void ChangeObjectHandle(object obj, Type type)
         {
             IntPtr objRawDataPtr = GetObjectAddress(obj);
-            ((IntPtr*)objRawDataPtr)[0] = GetObjectHandle(type);
+            ((IntPtr*)objRawDataPtr)[0] = type.TypeHandle.Value;
         }
 
         /// <summary>
