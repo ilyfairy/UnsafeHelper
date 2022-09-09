@@ -26,6 +26,7 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <param name="val"></param>
         /// <returns>address</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetVarAddress<T>(ref T val)
         {
             var r = __makeref(val);
@@ -36,11 +37,12 @@ namespace IlyfairyLib.Unsafe
         /// 获取引用对象在堆中的地址
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="val"></param>
+        /// <param name="obj"></param>
         /// <returns>address</returns>
-        public static unsafe IntPtr GetObjectAddress(object val)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe IntPtr GetObjectAddress(object obj)
         {
-            var r = __makeref(val);
+            var r = __makeref(obj);
             return *(IntPtr*)*(IntPtr*)&r;
         }
 
@@ -49,9 +51,11 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectRawDataAddress(object obj)
         {
-            return GetObjectAddress(obj) + sizeof(IntPtr);
+            var r = __makeref(obj);
+            return *(IntPtr*)*(IntPtr*)&r + sizeof(IntPtr);
         }
 
         /// <summary>
@@ -98,6 +102,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetStructSize<T>() where T : struct => System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
 
         /// <summary>
@@ -123,6 +128,7 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <param name="obj"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T? CloneEmptyObject<T>(T obj)
         {
             return (T?)AllocateUninitializedClone(obj)!;
@@ -133,6 +139,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectHandle(object obj)
         {
             IntPtr objRawDataPtr = GetObjectAddress(obj);
@@ -144,6 +151,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe string ToAddress(this UIntPtr p)
         {
             return "0x" + p.ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
@@ -154,6 +162,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe string ToAddress(this IntPtr p)
         {
             return "0x" + p.ToString("X").PadLeft(sizeof(IntPtr) * 2, '0');
@@ -164,6 +173,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <param name="handle"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void ChangeObjectHandle<T>(T obj, IntPtr handle) where T : class
         {
             IntPtr objRawDataPtr = GetObjectRawDataAddress(obj);
@@ -176,6 +186,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <param name="type"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void ChangeObjectHandle(object obj, Type type)
         {
             IntPtr objRawDataPtr = GetObjectAddress(obj);
@@ -304,13 +315,6 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取实例字段
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        public static FieldInfo[] GetInstanceFields(Type type) => type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-
-        /// <summary>
         /// 父类数据复制到子类
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -327,24 +331,121 @@ namespace IlyfairyLib.Unsafe
             Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr ToIntPtr(this string str)
         {
             return GetObjectAddress(str) + 4 + sizeof(IntPtr);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe char* ToPointer(this string str)
         {
             return (char*)(GetObjectAddress(str) + 4 + sizeof(IntPtr)).ToPointer();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr ToIntPtr<T>(this T[] str) where T : unmanaged
         {
             return (GetObjectAddress(str) + sizeof(IntPtr) * 2);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T* ToPointer<T>(this T[] str) where T : unmanaged
         {
             return (T*)(GetObjectAddress(str) + sizeof(IntPtr) * 2).ToPointer();
+        }
+
+        /// <summary>
+        /// 获取实例字段
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static FieldInfo[] GetInstanceFields(Type type) => type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+        /// <summary>
+        /// 获取字段偏移
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        public static unsafe int GetFieldOffset(Type type, string fieldName)
+        {
+            var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            if (fieldInfo == null) return -1;
+            IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
+            IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + 48);
+            return *(ushort*)(fieldHandle + 12);
+        }
+
+        /// <summary>
+        /// 获取字段地址
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj"></param>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        public static unsafe IntPtr GetFieldAddress<T>(T obj, string fieldName) where T : class
+        {
+            if (obj == null) return IntPtr.Zero;
+            int offset = GetFieldOffset(obj.GetType(), fieldName);
+            if (offset == -1) return IntPtr.Zero;
+            return GetObjectRawDataAddress(obj) + offset;
+        }
+
+        private static unsafe bool SetFieldValue<TValue>(IntPtr addr, TValue value)
+        {
+            if (addr == IntPtr.Zero) return false;
+            if (value is ValueType)
+            {
+                int size = System.Runtime.CompilerServices.Unsafe.SizeOf<TValue>();
+                if (size <= 0) return false;
+                IntPtr valueAddr = GetVarAddress(ref value);
+                Buffer.MemoryCopy((void*)valueAddr, (void*)addr, size, size);
+            }
+            else
+            {
+                if (value == null)
+                {
+                    *(IntPtr*)addr = IntPtr.Zero;
+                }
+                else
+                {
+                    IntPtr val = GetObjectAddress(value);
+                    *(IntPtr*)addr = val;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 设置Object字段的值
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <param name="obj"></param>
+        /// <param name="fieldName"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static unsafe bool SetObjectFieldValue<T, TValue>(T obj, string fieldName, TValue value) where T : class
+        {
+            IntPtr addr = GetFieldAddress(obj, fieldName);
+            return SetFieldValue(addr, value);
+        }
+
+        /// <summary>
+        /// 设置结构体字段的值
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <param name="obj"></param>
+        /// <param name="fieldName"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static unsafe bool SetStructFieldValue<T, TValue>(ref T obj, string fieldName, TValue value) where T : struct
+        {
+            int offset = GetFieldOffset(typeof(T), fieldName);
+            IntPtr addr = GetVarAddress(ref obj) + offset;
+            return SetFieldValue(addr, value);
         }
 
     }
