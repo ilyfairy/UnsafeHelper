@@ -11,13 +11,28 @@ namespace IlyfairyLib.Unsafe
     {
         private static readonly Type RuntimeHelpersType;
         private static readonly Func<object?, object?> AllocateUninitializedClone;
+        private static int m_fieldHandle_offset;
 
         private delegate ref byte GetRawDataDelegate(object obj);
 
-        static UnsafeHelper()
+        unsafe static UnsafeHelper()
         {
             RuntimeHelpersType = typeof(RuntimeHelpers);
             AllocateUninitializedClone = RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Func<object, object>>()!;
+
+            var info = typeof(UnsafeHelper).GetField("m_fieldHandle_offset", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+            var m_fieldHandleInfo = info!.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            var addr = (IntPtr*)GetObjectRawDataAddress(m_fieldHandleInfo!);
+            var m_fieldHandle = (IntPtr)m_fieldHandleInfo!.GetValue(m_fieldHandleInfo)!;
+            int size = (int)GetObjectRawDataSize(m_fieldHandleInfo);
+            for (int i = 0; i < size; i += 1)
+            {
+                if (m_fieldHandle == addr[i])
+                {
+                    m_fieldHandle_offset = i * sizeof(nint);
+                    break;
+                }
+            }
         }
 
         /// <summary>
@@ -373,8 +388,8 @@ namespace IlyfairyLib.Unsafe
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfo == null) return -1;
             IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
-            IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + 48);
-            return *(ushort*)(fieldHandle + 12);
+            IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
+            return *(ushort*)(fieldHandle + sizeof(nint) + 4);
         }
 
         /// <summary>
