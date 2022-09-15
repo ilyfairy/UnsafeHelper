@@ -22,9 +22,13 @@ namespace IlyfairyLib.Unsafe
 
         unsafe static UnsafeHelper()
         {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            #pragma warning disable CS8604 // Possible null reference argument.
+            #pragma warning disable CS8605 // Unboxing a possibly null value.
+
             RuntimeHelpersType = typeof(RuntimeHelpers);
             AllocateUninitializedClone = (Func<object, object>)RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic).CreateDelegate(typeof(Func<object, object>));
-            
+
             var info = typeof(UnsafeHelper).GetField("m_fieldHandle_offset", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
             var m_fieldHandleInfo = info.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             var addr = (IntPtr*)GetObjectRawDataAddress(m_fieldHandleInfo);
@@ -38,6 +42,9 @@ namespace IlyfairyLib.Unsafe
                     break;
                 }
             }
+            #pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8604 // Possible null reference argument.
+#pragma warning restore CS8605 // Unboxing a possibly null value.
         }
 
         /// <summary>
@@ -388,18 +395,34 @@ namespace IlyfairyLib.Unsafe
             Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
         }
 
+        /// <summary>
+        /// 获取字符串字符的地址
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr ToIntPtr(this string str)
         {
             return GetObjectAddress(str) + 4 + sizeof(IntPtr);
         }
 
+        /// <summary>
+        /// 获取字符串字符的指针
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe char* ToPointer(this string str)
         {
             return (char*)(GetObjectAddress(str) + 4 + sizeof(IntPtr)).ToPointer();
         }
 
+        /// <summary>
+        /// 获取数组第0的值的地址
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="str"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr ToIntPtr<T>(this T[] str) where T : unmanaged
         {
@@ -513,39 +536,4 @@ namespace IlyfairyLib.Unsafe
 
     }
 
-    /// <summary>
-    /// 类型句柄信息 <see cref="System.Runtime.CompilerServices.MethodTable"/>
-    /// </summary>
-    public unsafe ref struct TypeHandleTable
-    {
-        public static TypeHandleTable* From<T>()
-        {
-            return (TypeHandleTable*)typeof(T).TypeHandle.Value;
-        }
-        public static TypeHandleTable* From(Type type)
-        {
-            return (TypeHandleTable*)type.TypeHandle.Value;
-        }
-        public static TypeHandleTable* From(IntPtr typeHandle)
-        {
-            return (TypeHandleTable*)typeHandle;
-        }
-
-        /// <summary>
-        /// 判断是否为值类型
-        /// </summary>
-        public bool IsValueType
-        {
-            get
-            {
-                fixed(TypeHandleTable* p = &this)
-                {
-                    return (*(uint*)p & 0b11000000000000000000U) == 0b1000000000000000000U;
-                }
-            }
-        }
-
-
-
-    }
 }
