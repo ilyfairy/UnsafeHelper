@@ -299,9 +299,13 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="text">字符串</param>
         /// <returns></returns>
-        public static unsafe Span<char> ToSpan(this string text)
+        public static unsafe Span<char> AsSpan(string text)
         {
-            return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
+            fixed(char* p = text)
+            {
+                return new Span<char>(p, text.Length);
+            }
+            //return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
         }
 
         /// <summary>
@@ -406,51 +410,18 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取字符串字符的地址
-        /// </summary>
-        /// <param name="str"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr ToIntPtr(this string str)
-        {
-            return GetObjectAddress(str) + 4 + sizeof(IntPtr);
-        }
-
-        /// <summary>
-        /// 获取字符串字符的指针
-        /// </summary>
-        /// <param name="str"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe char* ToPointer(this string str)
-        {
-            return (char*)(GetObjectAddress(str) + 4 + sizeof(IntPtr)).ToPointer();
-        }
-
-        /// <summary>
-        /// 获取数组第0的值的地址
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="str"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr ToIntPtr<T>(this T[] str) where T : unmanaged
-        {
-            return (GetObjectAddress(str) + sizeof(IntPtr) * 2);
-        }
-
-        /// <summary>
         /// 获取数组第0的值的指针
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="str"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T* ToPointer<T>(this T[] str) where T : unmanaged
+        public static unsafe T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
             return (T*)(GetObjectAddress(str) + sizeof(IntPtr) * 2).ToPointer();
         }
 
+        #region Field
         /// <summary>
         /// 获取实例字段
         /// </summary>
@@ -543,6 +514,8 @@ namespace IlyfairyLib.Unsafe
             IntPtr addr = GetRefAddress(ref obj) + offset;
             return SetFieldValue(addr, value);
         }
+        #endregion
+
 
     }
 }
