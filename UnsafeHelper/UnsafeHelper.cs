@@ -1,13 +1,7 @@
-﻿#define HAS_UNSAFE
-#define HAS_SPAN
-using System;
+﻿using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
-#if NULLABLE
-#nullable enable
-#endif
 
 namespace IlyfairyLib.Unsafe
 {
@@ -23,8 +17,8 @@ namespace IlyfairyLib.Unsafe
         unsafe static UnsafeHelper()
         {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-            #pragma warning disable CS8604 // Possible null reference argument.
-            #pragma warning disable CS8605 // Unboxing a possibly null value.
+#pragma warning disable CS8604 // Possible null reference argument.
+#pragma warning disable CS8605 // Unboxing a possibly null value.
 
             RuntimeHelpersType = typeof(RuntimeHelpers);
             AllocateUninitializedClone = (Func<object, object>)RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic).CreateDelegate(typeof(Func<object, object>));
@@ -42,7 +36,7 @@ namespace IlyfairyLib.Unsafe
                     break;
                 }
             }
-            #pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 #pragma warning restore CS8604 // Possible null reference argument.
 #pragma warning restore CS8605 // Unboxing a possibly null value.
         }
@@ -84,7 +78,6 @@ namespace IlyfairyLib.Unsafe
             return *(IntPtr*)*(IntPtr*)&r + sizeof(IntPtr);
         }
 
-#if HAS_SPAN
         /// <summary>
         /// 获取对象数据的Span
         /// </summary>
@@ -96,8 +89,6 @@ namespace IlyfairyLib.Unsafe
             ulong size = (ulong)GetObjectRawDataSize(obj) / (ulong)sizeof(T);
             return new Span<T>((void*)first, (int)size);
         }
-#endif
-
 
         /// <summary>
         /// 获取对象原始数据大小
@@ -125,7 +116,6 @@ namespace IlyfairyLib.Unsafe
             return size;
         }
 
-#if HAS_UNSAFE
         /// <summary>
         /// 获取结构体大小
         /// </summary>
@@ -133,9 +123,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetStructSize<T>() where T : struct => System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
-#endif
 
-        //net Framework没有AllocateUninitializedClone
         /// <summary>
         /// 克隆一个对象
         /// </summary>
@@ -153,7 +141,6 @@ namespace IlyfairyLib.Unsafe
             return newObj;
         }
 
-        //net Framework没有AllocateUninitializedClone
         /// <summary>
         /// 克隆至空的对象
         /// </summary>
@@ -163,7 +150,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T CloneEmptyObject<T>(T obj)
         {
-            if(obj == null) throw new ArgumentNullException(nameof(obj));
+            if (obj == null) throw new ArgumentNullException(nameof(obj));
             return (T)AllocateUninitializedClone(obj);
         }
 
@@ -175,7 +162,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectHandle(object obj)
         {
-            if(obj == null) throw new ArgumentNullException(nameof(obj));
+            if (obj == null) throw new ArgumentNullException(nameof(obj));
             IntPtr objRawDataPtr = GetObjectAddress(obj);
             return ((IntPtr*)objRawDataPtr)[0];
         }
@@ -248,7 +235,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe object AllocObject(Type type, IntPtr size)
         {
 #if NET6_0_OR_GREATER
-            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+        IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
             IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
@@ -265,7 +252,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe T AllocObject<T>(IntPtr size)
         {
 #if NET6_0_OR_GREATER
-            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+        IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
             IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
@@ -282,7 +269,7 @@ namespace IlyfairyLib.Unsafe
         {
             IntPtr size = (IntPtr)(GetObjectRawDataSize<T>() + sizeof(IntPtr));
 #if NET6_0_OR_GREATER
-            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+        IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
             IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
@@ -301,7 +288,6 @@ namespace IlyfairyLib.Unsafe
             Marshal.FreeHGlobal((IntPtr)GetObjectAddress(obj));
         }
 
-#if HAS_SPAN
         /// <summary>
         /// 将字符串转换成 Span&lt;char&gt;
         /// </summary>
@@ -311,9 +297,7 @@ namespace IlyfairyLib.Unsafe
         {
             return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
         }
-#endif
 
-#if HAS_SPAN
         /// <summary>
         /// 比较两个对象的原始数据是否相等<br/>不比较类型
         /// </summary>
@@ -356,9 +340,7 @@ namespace IlyfairyLib.Unsafe
                 return a.SequenceEqual(b);
             }
         }
-#endif
 
-#if HAS_SPAN
         /// <summary>
         /// 将[多维]数组转换为Span
         /// </summary>
@@ -374,7 +356,6 @@ namespace IlyfairyLib.Unsafe
             int offset = dimension * 8;
             return new Span<T>((byte*)a + 8 + offset, len);
         }
-#endif
 
         /// <summary>
         /// 父类数据复制到子类
@@ -535,5 +516,4 @@ namespace IlyfairyLib.Unsafe
         }
 
     }
-
 }
