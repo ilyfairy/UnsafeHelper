@@ -42,16 +42,18 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取变量在栈上的地址
+        /// 获取引用的地址
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="val"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr GetVarAddress<T>(ref T val)
+        public static unsafe IntPtr GetRefAddress<T>(ref T val)
         {
-            var r = __makeref(val);
-            return *((IntPtr*)&r);
+            fixed(void* p = &val)
+            {
+                return (IntPtr)p;
+            }
         }
 
         /// <summary>
@@ -62,8 +64,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectAddress(object obj)
         {
-            var r = __makeref(obj);
-            return *(IntPtr*)*(IntPtr*)&r;
+            return *(IntPtr*)&obj;
         }
 
         /// <summary>
@@ -74,8 +75,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectRawDataAddress(object obj)
         {
-            var r = __makeref(obj);
-            return *(IntPtr*)*(IntPtr*)&r + sizeof(IntPtr);
+            return GetObjectAddress(obj) + IntPtr.Size;
         }
 
         /// <summary>
@@ -101,18 +101,24 @@ namespace IlyfairyLib.Unsafe
             IntPtr objP = GetObjectAddress(obj);
             IntPtr rawDataP = objP + sizeof(IntPtr);
             IntPtr objTable = *(IntPtr*)objP;
-            long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
+            long size = (*(uint*)(objTable + 4)) - (2 * 8);
+            if((*(uint*)objTable & 2147483648U) > 0)
+            {
+                size += ((long)(*(ushort*)objTable) * (*(uint*)rawDataP));
+            }
+            //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
         }
 
         /// <summary>
-        /// 获取对象原始数据大小
+        /// 获取对象原始数据大小, 如果获取失败返回-1
         /// </summary>
         /// <returns></returns>
         public static unsafe long GetObjectRawDataSize<T>() where T : class
         {
             IntPtr objTable = typeof(T).TypeHandle.Value;
             long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr);
+            if (size < 0) size = -1;
             return size;
         }
 
@@ -363,13 +369,36 @@ namespace IlyfairyLib.Unsafe
         /// <param name="parentObj">父类/基类</param>
         /// <param name="childObj">子类/派生类</param>
         /// <returns></returns>
-        public static unsafe void CopyToChild<TParent, TChild>(TParent parentObj, ref TChild childObj) where TParent : class where TChild : class
+        public static unsafe void CopyParentToChild<TParent, TChild>(TParent parentObj, TChild childObj) 
+            where TParent : class 
+            where TChild : class , TParent
         {
             if (parentObj == null) throw new ArgumentNullException(nameof(parentObj));
             if (childObj == null) throw new ArgumentNullException(nameof(childObj));
 
             IntPtr old = GetObjectRawDataAddress(parentObj);
             IntPtr data = GetObjectRawDataAddress(childObj);
+
+            long len = GetObjectRawDataSize(parentObj);
+
+            Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
+        }
+
+        /// <summary>
+        /// 子类数据复制到父类
+        /// </summary>
+        /// <param name="parentObj">父类/基类</param>
+        /// <param name="childObj">子类/派生类</param>
+        /// <returns></returns>
+        public static unsafe void CopyChildToParent<TParent, TChild>(TChild childObj, TParent parentObj)
+            where TParent : class
+            where TChild : class, TParent
+        {
+            if (parentObj == null) throw new ArgumentNullException(nameof(parentObj));
+            if (childObj == null) throw new ArgumentNullException(nameof(childObj));
+
+            IntPtr old = GetObjectRawDataAddress(childObj);
+            IntPtr data = GetObjectRawDataAddress(parentObj);
 
             long len = GetObjectRawDataSize(parentObj);
 
@@ -466,7 +495,7 @@ namespace IlyfairyLib.Unsafe
             {
                 int size = System.Runtime.CompilerServices.Unsafe.SizeOf<TValue>();
                 if (size <= 0) return false;
-                IntPtr valueAddr = GetVarAddress(ref value);
+                IntPtr valueAddr = GetRefAddress(ref value);
                 Buffer.MemoryCopy((void*)valueAddr, (void*)addr, size, size);
             }
             else
@@ -511,7 +540,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe bool SetStructFieldValue<T, TValue>(ref T obj, string fieldName, TValue value) where T : struct
         {
             int offset = GetFieldOffset(typeof(T), fieldName);
-            IntPtr addr = GetVarAddress(ref obj) + offset;
+            IntPtr addr = GetRefAddress(ref obj) + offset;
             return SetFieldValue(addr, value);
         }
 
