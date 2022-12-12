@@ -22,7 +22,7 @@ namespace UnsafeHelperTest
         {
             object obj = new object();
             var p1 = (void*)*(object**)Unsafe.AsPointer(ref obj);
-            var p2 = (void*)UnsafeHelper.GetPointer(obj);
+            var p2 = UnsafeHelper.GetPointer(obj);
             Assert.True(p1 == p2);
         }
 

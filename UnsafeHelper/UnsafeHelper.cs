@@ -58,12 +58,19 @@ namespace IlyfairyLib.Unsafe
         //}
 
         /// <summary>
-        /// 获取对象实例的地址
+        /// 获取对象实例的地址(Handle的位置)
         /// </summary>
         /// <param name="obj"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr GetPointer(object obj) => (IntPtr)IL.GetPointer(obj);
+        public static unsafe void* GetPointer(object obj) => IL.GetPointer(obj);
+
+        /// <summary>
+        /// 获取对象实例的地址(Handle的位置)
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns>address</returns>
+        public static IntPtr GetPointerIntPtr(object obj) => IL.GetPointerIntPtr(obj);
 
         /// <summary>
         /// 获取对象数据区域的地址
@@ -73,7 +80,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectRawDataAddress(object obj)
         {
-            return GetPointer(obj) + IntPtr.Size;
+            return GetPointerIntPtr(obj) + IntPtr.Size;
         }
 
         /// <summary>
@@ -96,7 +103,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe long GetObjectRawDataSize<T>(this T obj) where T : class
         {
             if (obj == null) return -1;
-            IntPtr objP = GetPointer(obj);
+            IntPtr objP = GetPointerIntPtr(obj);
             IntPtr rawDataP = objP + sizeof(IntPtr);
             IntPtr objTable = *(IntPtr*)objP;
             long size = (*(uint*)(objTable + 4)) - (2 * 8);
@@ -165,19 +172,6 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取对象句柄(对象头)
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr GetObjectHandle(object obj)
-        {
-            if (obj == null) throw new ArgumentNullException(nameof(obj));
-            IntPtr objRawDataPtr = GetPointer(obj);
-            return ((IntPtr*)objRawDataPtr)[0];
-        }
-
-        /// <summary>
         /// 返回地址字符串
         /// </summary>
         /// <param name="p"></param>
@@ -219,7 +213,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe object ChangeObjectHandle(object obj, Type type)
         {
-            *(IntPtr*)*(IntPtr*)&obj = type.TypeHandle.Value;
+            *(IntPtr*)GetPointer(obj) = type.TypeHandle.Value;
             return obj;
         }
 
@@ -243,12 +237,13 @@ namespace IlyfairyLib.Unsafe
         public static unsafe object AllocObject(Type type, IntPtr size)
         {
 #if NET6_0_OR_GREATER
-            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+            var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
-            IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
+            var p = (IntPtr)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
-            p[0] = type.TypeHandle.Value;
-            var obj = System.Runtime.CompilerServices.Unsafe.Read<object>(&p);
+            *(IntPtr*)p = type.TypeHandle.Value;
+            //var obj = System.Runtime.CompilerServices.Unsafe.Read<object>(&p);
+            var obj = IL.As<object>(p);
             return obj;
         }
 
@@ -257,15 +252,16 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="size"></param>
         /// <returns></returns>
-        public static unsafe T AllocObject<T>(IntPtr size)
+        public static unsafe T AllocObject<T>(IntPtr size) where T : class
         {
 #if NET6_0_OR_GREATER
-            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+            var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
-            IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
+            var p = Marshal.AllocHGlobal((size + sizeof(IntPtr)));
 #endif
-            p[0] = typeof(T).TypeHandle.Value;
-            var obj = System.Runtime.CompilerServices.Unsafe.Read<T>(&p);
+            *(IntPtr*)p = typeof(T).TypeHandle.Value;
+            //var obj = System.Runtime.CompilerServices.Unsafe.Read<T>(&p);
+            var obj = IL.As<T>(p);
             return obj;
         }
 
@@ -275,14 +271,15 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe T AllocObject<T>() where T : class
         {
-            IntPtr size = (IntPtr)(GetObjectRawDataSize<T>() + sizeof(IntPtr));
+            var size = (IntPtr)(GetObjectRawDataSize<T>() + IntPtr.Size);
 #if NET6_0_OR_GREATER
-            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+            var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
-            IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
+            var p = (IntPtr)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
-            p[0] = typeof(T).TypeHandle.Value;
-            var obj = System.Runtime.CompilerServices.Unsafe.Read<T>(&p);
+            *(IntPtr*)p = typeof(T).TypeHandle.Value;
+            //var obj = System.Runtime.CompilerServices.Unsafe.Read<T>(&p);
+            var obj = IL.As<T>(p);
             return obj;
         }
 
@@ -292,8 +289,11 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         public static unsafe void FreeObject(object obj)
         {
-            //NativeMemory.Free((void*)GetObjectAddress(obj));
-            Marshal.FreeHGlobal((IntPtr)GetPointer(obj));
+#if NET6_0_OR_GREATER
+            NativeMemory.Free(GetPointer(obj));
+#else
+            Marshal.FreeHGlobal(GetPointerIntPtr(obj));
+#endif
         }
 
         /// <summary>
@@ -362,6 +362,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe Span<T> AsSpan<T>(this Array multiArray, int dimension)
         {
+            if (multiArray == null) throw new ArgumentNullException(nameof(multiArray));
             if (dimension <= 1) dimension = 0;
             IntPtr a = GetObjectRawDataAddress(multiArray);
             int len = multiArray.Length;
@@ -430,7 +431,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
-            return (T*)(GetPointer(str) + sizeof(IntPtr) * 2).ToPointer();
+            return (T*)(GetPointerIntPtr(str) + sizeof(IntPtr) * 2).ToPointer();
         }
 
         #region Field
@@ -489,7 +490,7 @@ namespace IlyfairyLib.Unsafe
                 }
                 else
                 {
-                    IntPtr val = GetPointer(value);
+                    IntPtr val = GetPointerIntPtr(value);
                     *(IntPtr*)addr = val;
                 }
             }
