@@ -49,24 +49,21 @@ namespace IlyfairyLib.Unsafe
         /// <param name="val"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr GetRefAddress<T>(ref T val)
-        {
-            fixed(void* p = &val)
-            {
-                return (IntPtr)p;
-            }
-        }
+        public static unsafe IntPtr GetPointer<T>(ref T val) => (IntPtr)System.Runtime.CompilerServices.Unsafe.AsPointer(ref val);
+        //{
+        //    fixed(void* p = &val)
+        //    {
+        //        return (IntPtr)p;
+        //    }
+        //}
 
         /// <summary>
-        /// 获取引用对象在堆中的地址
+        /// 获取对象实例的地址
         /// </summary>
         /// <param name="obj"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe IntPtr GetObjectAddress(object obj)
-        {
-            return *(IntPtr*)&obj;
-        }
+        public static unsafe IntPtr GetPointer(object obj) => (IntPtr)IL.GetPointer(obj);
 
         /// <summary>
         /// 获取对象数据区域的地址
@@ -76,7 +73,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe IntPtr GetObjectRawDataAddress(object obj)
         {
-            return GetObjectAddress(obj) + IntPtr.Size;
+            return GetPointer(obj) + IntPtr.Size;
         }
 
         /// <summary>
@@ -99,7 +96,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe long GetObjectRawDataSize<T>(this T obj) where T : class
         {
             if (obj == null) return -1;
-            IntPtr objP = GetObjectAddress(obj);
+            IntPtr objP = GetPointer(obj);
             IntPtr rawDataP = objP + sizeof(IntPtr);
             IntPtr objTable = *(IntPtr*)objP;
             long size = (*(uint*)(objTable + 4)) - (2 * 8);
@@ -176,7 +173,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe IntPtr GetObjectHandle(object obj)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
-            IntPtr objRawDataPtr = GetObjectAddress(obj);
+            IntPtr objRawDataPtr = GetPointer(obj);
             return ((IntPtr*)objRawDataPtr)[0];
         }
 
@@ -296,7 +293,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe void FreeObject(object obj)
         {
             //NativeMemory.Free((void*)GetObjectAddress(obj));
-            Marshal.FreeHGlobal((IntPtr)GetObjectAddress(obj));
+            Marshal.FreeHGlobal((IntPtr)GetPointer(obj));
         }
 
         /// <summary>
@@ -433,7 +430,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
-            return (T*)(GetObjectAddress(str) + sizeof(IntPtr) * 2).ToPointer();
+            return (T*)(GetPointer(str) + sizeof(IntPtr) * 2).ToPointer();
         }
 
         #region Field
@@ -481,7 +478,7 @@ namespace IlyfairyLib.Unsafe
             {
                 int size = System.Runtime.CompilerServices.Unsafe.SizeOf<TValue>();
                 if (size <= 0) return false;
-                IntPtr valueAddr = GetRefAddress(ref value);
+                IntPtr valueAddr = GetPointer(ref value);
                 Buffer.MemoryCopy((void*)valueAddr, (void*)addr, size, size);
             }
             else
@@ -492,7 +489,7 @@ namespace IlyfairyLib.Unsafe
                 }
                 else
                 {
-                    IntPtr val = GetObjectAddress(value);
+                    IntPtr val = GetPointer(value);
                     *(IntPtr*)addr = val;
                 }
             }
@@ -526,7 +523,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe bool SetStructFieldValue<T, TValue>(ref T obj, string fieldName, TValue value) where T : struct
         {
             int offset = GetFieldOffset(typeof(T), fieldName);
-            IntPtr addr = GetRefAddress(ref obj) + offset;
+            IntPtr addr = GetPointer(ref obj) + offset;
             return SetFieldValue(addr, value);
         }
         #endregion

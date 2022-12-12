@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnsafeHelper.IL", "UnsafeHelper.IL\UnsafeHelper.IL.ilproj", "{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,18 @@ Global
 		{7D0BA15A-EF3E-45D9-9ABB-603C79AF5CC3}.Release|x64.Build.0 = Release|x64
 		{7D0BA15A-EF3E-45D9-9ABB-603C79AF5CC3}.Release|x86.ActiveCfg = Release|x86
 		{7D0BA15A-EF3E-45D9-9ABB-603C79AF5CC3}.Release|x86.Build.0 = Release|x86
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Debug|x64.Build.0 = Debug|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Debug|x86.Build.0 = Debug|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Release|x64.ActiveCfg = Release|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Release|x64.Build.0 = Release|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Release|x86.ActiveCfg = Release|Any CPU
+		{C71D4520-B2E9-4321-8FD8-7C5A85EA06B6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

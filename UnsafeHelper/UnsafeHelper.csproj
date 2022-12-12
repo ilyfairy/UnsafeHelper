@@ -11,5 +11,9 @@
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\UnsafeHelper.IL\UnsafeHelper.IL.ilproj" />
+	</ItemGroup>
 	
 </Project>
