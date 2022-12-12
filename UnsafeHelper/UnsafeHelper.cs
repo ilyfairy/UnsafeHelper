@@ -106,6 +106,7 @@ namespace IlyfairyLib.Unsafe
             {
                 size += ((long)(*(ushort*)objTable) * (*(uint*)rawDataP));
             }
+            if (size < 0) size = -1;
             //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
         }
@@ -117,9 +118,14 @@ namespace IlyfairyLib.Unsafe
         public static unsafe long GetObjectRawDataSize<T>() where T : class
         {
             IntPtr objTable = typeof(T).TypeHandle.Value;
-            long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr);
+            long size = (*(uint*)(objTable + 4)) - (2 * 8);
             if (size < 0) size = -1;
+            //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
+            //IntPtr objTable = typeof(T).TypeHandle.Value;
+            //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr);
+            //if (size < 0) size = -1;
+            //return size;
         }
 
         /// <summary>
@@ -407,6 +413,16 @@ namespace IlyfairyLib.Unsafe
             long len = GetObjectRawDataSize(parentObj);
 
             Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
+        }
+
+        /// <summary>
+        /// 获取数组中每个元素占用的大小
+        /// </summary>
+        /// <param name="array"></param>
+        /// <returns></returns>
+        public static unsafe int GetArrayItemSize(Array array)
+        {
+            return *(ushort*)array.GetType().TypeHandle.Value;
         }
 
         /// <summary>
