@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 namespace IlyfairyLib.Unsafe
 {
     /// <summary>
@@ -149,7 +150,7 @@ namespace IlyfairyLib.Unsafe
             long size = GetObjectRawDataSize(obj); //长度
             IntPtr oldRef = GetObjectRawDataAddress(obj); //旧的地址引用
             IntPtr newRef = GetObjectRawDataAddress(newObj); //新的地址引用
-            Buffer.MemoryCopy((void*)oldRef, (void*)newRef, (ulong)size, (ulong)size);
+            Buffer.MemoryCopy((void*)oldRef, (void*)newRef, size, size);
             return newObj;
         }
 
@@ -207,11 +208,10 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <param name="handle"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void ChangeObjectHandle(object obj, IntPtr handle)
+        public static unsafe object ChangeObjectHandle(object obj, IntPtr handle)
         {
-            IntPtr objRawDataPtr = GetObjectRawDataAddress(obj);
-            var rawData = (byte*)objRawDataPtr - sizeof(IntPtr);
-            *(IntPtr*)(rawData) = handle;
+            *(IntPtr*)*(IntPtr*)&obj = handle;
+            return obj;
         }
 
         /// <summary>
@@ -220,10 +220,10 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <param name="type"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void ChangeObjectHandle(object obj, Type type)
+        public static unsafe object ChangeObjectHandle(object obj, Type type)
         {
-            IntPtr objRawDataPtr = GetObjectAddress(obj);
-            ((IntPtr*)objRawDataPtr)[0] = type.TypeHandle.Value;
+            *(IntPtr*)*(IntPtr*)&obj = type.TypeHandle.Value;
+            return obj;
         }
 
         /// <summary>
@@ -233,8 +233,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T ChangeObjectHandle<T>(object obj)
         {
-            IntPtr objRawDataPtr = GetObjectAddress(obj);
-            ((IntPtr*)objRawDataPtr)[0] = typeof(T).TypeHandle.Value;
+            *(IntPtr*)*(IntPtr*)&obj = typeof(T).TypeHandle.Value;
             return (T)obj;
         }
 
@@ -247,7 +246,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe object AllocObject(Type type, IntPtr size)
         {
 #if NET6_0_OR_GREATER
-        IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
             IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
@@ -264,7 +263,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe T AllocObject<T>(IntPtr size)
         {
 #if NET6_0_OR_GREATER
-        IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
             IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
@@ -281,7 +280,7 @@ namespace IlyfairyLib.Unsafe
         {
             IntPtr size = (IntPtr)(GetObjectRawDataSize<T>() + sizeof(IntPtr));
 #if NET6_0_OR_GREATER
-        IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
+            IntPtr* p = (IntPtr*)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
 #else
             IntPtr* p = (IntPtr*)Marshal.AllocHGlobal((IntPtr)(size + sizeof(IntPtr)));
 #endif
@@ -303,13 +302,13 @@ namespace IlyfairyLib.Unsafe
         /// <summary>
         /// 将字符串转换成 Span&lt;char&gt;
         /// </summary>
-        /// <param name="text">字符串</param>
+        /// <param name="str">字符串</param>
         /// <returns></returns>
-        public static unsafe Span<char> AsSpan(string text)
+        public static unsafe Span<char> AsSpan(string str)
         {
-            fixed(char* p = text)
+            fixed(char* p = str)
             {
-                return new Span<char>(p, text.Length);
+                return new Span<char>(p, str.Length);
             }
             //return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
         }
@@ -416,7 +415,7 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取数组中每个元素占用的大小
+        /// 获取数组中每个元素占用的大小, 数组元素的大小不会超过65535字节
         /// </summary>
         /// <param name="array"></param>
         /// <returns></returns>
@@ -534,4 +533,5 @@ namespace IlyfairyLib.Unsafe
 
 
     }
+#pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 }
