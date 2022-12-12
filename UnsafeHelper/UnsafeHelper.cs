@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using IlyfairyLib.Unsafe.Internal;
 
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 namespace IlyfairyLib.Unsafe
@@ -12,22 +13,22 @@ namespace IlyfairyLib.Unsafe
     public static class UnsafeHelper
     {
         private static readonly Type RuntimeHelpersType;
-        private static readonly Func<object, object> AllocateUninitializedClone;
-        private static readonly int m_fieldHandle_offset;
+        private static readonly Func<object, object>? AllocateUninitializedClone;
+        private static readonly int m_fieldHandle_offset = -1; // RtFieldInfo中的m_fieldHandle的偏移地址
 
         unsafe static UnsafeHelper()
         {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-#pragma warning disable CS8604 // Possible null reference argument.
-#pragma warning disable CS8605 // Unboxing a possibly null value.
-
             RuntimeHelpersType = typeof(RuntimeHelpers);
-            AllocateUninitializedClone = (Func<object, object>)RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic).CreateDelegate(typeof(Func<object, object>));
+            AllocateUninitializedClone = (Func<object, object>?)RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic)?.CreateDelegate(typeof(Func<object, object>));
 
-            var info = typeof(UnsafeHelper).GetField("m_fieldHandle_offset", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-            var m_fieldHandleInfo = info.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            //var info = typeof(UnsafeHelper).GetField("m_fieldHandle_offset", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static); //只是为了获取一个RtFieldInfo实例
+            //var m_fieldHandleInfo = info.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            var m_fieldHandleInfo = typeof(FieldInfo).Assembly.GetType("System.Reflection.RtFieldInfo")?.GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            if (m_fieldHandleInfo == null) return;
             var addr = (IntPtr*)GetObjectRawDataAddress(m_fieldHandleInfo);
-            var m_fieldHandle = (IntPtr)m_fieldHandleInfo.GetValue(m_fieldHandleInfo);
+            var m_fieldHandle = (IntPtr)m_fieldHandleInfo.GetValue(m_fieldHandleInfo)!;
+
+            //获取m_fieldHandle的偏移地址
             int size = (int)GetObjectRawDataSize(m_fieldHandleInfo);
             for (int i = 0; i < size; i += 1)
             {
@@ -37,9 +38,6 @@ namespace IlyfairyLib.Unsafe
                     break;
                 }
             }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-#pragma warning restore CS8604 // Possible null reference argument.
-#pragma warning restore CS8605 // Unboxing a possibly null value.
         }
 
         /// <summary>
@@ -147,10 +145,11 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static unsafe T Clone<T>(this T obj) where T : class
+        public static unsafe T? Clone<T>(this T obj) where T : class
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
-            T newObj = CloneEmptyObject(obj); //克隆对象
+            T? newObj = CloneEmptyObject(obj); //克隆对象
+            if (newObj == null) return null;
             long size = GetObjectRawDataSize(obj); //长度
             IntPtr oldRef = GetObjectRawDataAddress(obj); //旧的地址引用
             IntPtr newRef = GetObjectRawDataAddress(newObj); //新的地址引用
@@ -165,9 +164,10 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T CloneEmptyObject<T>(T obj)
+        public static T? CloneEmptyObject<T>(T obj) where T : class
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
+            if (AllocateUninitializedClone == null) return null;
             return (T)AllocateUninitializedClone(obj);
         }
 
@@ -450,8 +450,10 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe int GetFieldOffset(Type type, string fieldName)
         {
+            if (m_fieldHandle_offset == -1) return -1;
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfo == null) return -1;
+            Console.WriteLine(fieldInfo.GetType());
             IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
             IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
             return *(ushort*)(fieldHandle + sizeof(IntPtr) + 4);
@@ -509,6 +511,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe bool SetObjectFieldValue<T, TValue>(T obj, string fieldName, TValue value) where T : class
         {
             IntPtr addr = GetFieldAddress(obj, fieldName);
+            if (addr == IntPtr.Zero) return false;
             return SetFieldValue(addr, value);
         }
 
@@ -524,6 +527,7 @@ namespace IlyfairyLib.Unsafe
         public static unsafe bool SetStructFieldValue<T, TValue>(ref T obj, string fieldName, TValue value) where T : struct
         {
             int offset = GetFieldOffset(typeof(T), fieldName);
+            if (offset == -1) return false;
             IntPtr addr = GetPointer(ref obj) + offset;
             return SetFieldValue(addr, value);
         }

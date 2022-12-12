@@ -8,7 +8,7 @@
 
 .module UnsafeHelper.IL.dll
 
-.class public abstract auto ansi sealed beforefieldinit IlyfairyLib.Unsafe.IL
+.class public abstract auto ansi sealed beforefieldinit IlyfairyLib.Unsafe.Internal.IL
 {
   .method public hidebysig static void* GetPointer(object obj) cil managed aggressiveinlining
   {
