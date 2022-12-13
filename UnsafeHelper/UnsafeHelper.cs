@@ -103,9 +103,9 @@ namespace IlyfairyLib.Unsafe
         public static unsafe long GetObjectRawDataSize<T>(T obj) where T : class
         {
             if (obj == null) return -1;
-            IntPtr objP = GetPointerIntPtr(obj);
-            IntPtr rawDataP = objP + sizeof(IntPtr);
-            IntPtr objTable = *(IntPtr*)objP;
+            IntPtr objptr = GetPointerIntPtr(obj);
+            IntPtr rawDataP = objptr + sizeof(IntPtr);
+            IntPtr objTable = *(IntPtr*)objptr;
             long size = (*(uint*)(objTable + 4)) - (2 * sizeof(nint));
             if((*(uint*)objTable & 2147483648U) > 0)
             {
@@ -122,8 +122,8 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe long GetObjectRawDataSize<T>() where T : class
         {
-            IntPtr objTable = typeof(T).TypeHandle.Value;
-            long size = (*(uint*)(objTable + 4)) - (2 * sizeof(nint));
+            IntPtr methodTable = typeof(T).TypeHandle.Value;
+            long size = (*(uint*)(methodTable + 4)) - (2 * sizeof(nint));
             if (size < 0) size = -1;
             //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
@@ -379,7 +379,6 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <typeparam name="T">数组元素类型</typeparam>
         /// <param name="array">多维数组</param>
-        /// <param name="dimension">维度</param>
         /// <returns></returns>
         public static unsafe Span<T> AsSpan<T>(this Array array/*, int rank*/)
         {
