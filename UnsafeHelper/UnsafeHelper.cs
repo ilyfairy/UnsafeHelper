@@ -474,7 +474,6 @@ namespace IlyfairyLib.Unsafe
             if (m_fieldHandle_offset == -1) return -1;
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfo == null) return -1;
-            Console.WriteLine(fieldInfo.GetType());
             IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
             IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
             return *(ushort*)(fieldHandle + sizeof(IntPtr) + 4);
