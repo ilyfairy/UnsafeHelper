@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 		<Title>UnsafeHelper</Title>
-		<Version>2.2.0</Version>
+		<Version>2.2.1</Version>
 		<Authors>ilyfairy</Authors>
 		<Description>C#不安全方法</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
