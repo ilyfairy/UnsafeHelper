@@ -289,7 +289,9 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe T AllocObject<T>() where T : class
         {
-            var size = (IntPtr)(GetObjectRawDataSize<T>() + IntPtr.Size);
+            var raw = GetObjectRawDataSize<T>();
+            if (raw < 0) raw = 0;
+            var size = (IntPtr)(raw + IntPtr.Size);
 #if NET6_0_OR_GREATER
             var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
