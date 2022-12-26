@@ -289,7 +289,9 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe T AllocObject<T>() where T : class
         {
-            var size = (IntPtr)(GetObjectRawDataSize<T>() + IntPtr.Size);
+            var raw = GetObjectRawDataSize<T>();
+            if (raw < 0) raw = 0;
+            var size = (IntPtr)(raw + IntPtr.Size);
 #if NET6_0_OR_GREATER
             var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
@@ -474,7 +476,6 @@ namespace IlyfairyLib.Unsafe
             if (m_fieldHandle_offset == -1) return -1;
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfo == null) return -1;
-            Console.WriteLine(fieldInfo.GetType());
             IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
             IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
             return *(ushort*)(fieldHandle + sizeof(IntPtr) + 4);
