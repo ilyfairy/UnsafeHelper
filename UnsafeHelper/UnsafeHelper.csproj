@@ -3,13 +3,14 @@
 	<PropertyGroup>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 		<Title>UnsafeHelper</Title>
-		<Version>2.2.1</Version>
+		<Version>2.3.0</Version>
 		<Authors>ilyfairy</Authors>
 		<Description>C#不安全方法</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<TargetFrameworks>net5.0;net6.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
