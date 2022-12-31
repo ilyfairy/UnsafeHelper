@@ -30,4 +30,11 @@
     ldarg.0
     ret
   }
+  
+  .method public hidebysig static !!T As<class T>(void* objectAddress) cil managed aggressiveinlining
+  {
+    .maxstack 2
+    ldarg.0
+    ret
+  }
 }

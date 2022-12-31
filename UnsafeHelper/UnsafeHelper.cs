@@ -261,25 +261,20 @@ namespace IlyfairyLib.Unsafe
             return obj;
         }
 
-        //内存清0
-        private static void Zero(void* p, IntPtr size)
+        /// <summary>
+        /// 内存清0
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="size"></param>
+        public static void Zero(void* p, IntPtr size)
         {
-            long size_long = (long)size;
-            if (size_long > int.MaxValue)
+            while (size > (nint)int.MaxValue)
             {
-                int chunk = (int)((long)size / int.MaxValue);
-                int m = (int)((long)size % int.MaxValue);
-                long i = 0;
-                for (; i < chunk; i++)
-                {
-                    new Span<byte>((void*)((long)p + i * int.MaxValue), int.MaxValue).Clear();
-                }
-                new Span<byte>((void*)((long)p + i * int.MaxValue), m).Clear();
+                new Span<byte>(p, int.MaxValue).Clear();
+                size -= int.MaxValue;
+                p = (byte*)p + int.MaxValue;
             }
-            else
-            {
-                new Span<byte>(p, (int)size_long).Clear();
-            }
+            new Span<byte>(p, (int)size).Clear();
         }
 
 
