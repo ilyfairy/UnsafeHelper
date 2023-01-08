@@ -8,6 +8,7 @@ namespace IlyfairyLib.Unsafe;
 /// 自动回收的托管对象
 /// </summary>
 /// <typeparam name="T"></typeparam>
+[Obsolete("可能会导致对象丢失")]
 public unsafe class ManagedObject<T> where T : class
 {
     /// <summary>
