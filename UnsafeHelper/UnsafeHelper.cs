@@ -414,7 +414,7 @@ namespace IlyfairyLib.Unsafe
             int offset = rank * 8;
             var p = (byte*)addr + 8 + offset;
 #endif
-            return new Span<T>(p, checked((int)(len * (long)GetArrayItemSize(array)) / sizeof(T)));
+            return new Span<T>(p, checked((int)(len * (long)GetArrayItemSize(array) / sizeof(T))));
         }
 
         /// <summary>
