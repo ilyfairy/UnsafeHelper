@@ -262,23 +262,6 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 内存清0
-        /// </summary>
-        /// <param name="p"></param>
-        /// <param name="size"></param>
-        public static void Zero(void* p, IntPtr size)
-        {
-            while (size > (nint)int.MaxValue)
-            {
-                new Span<byte>(p, int.MaxValue).Clear();
-                size -= int.MaxValue;
-                p = (byte*)p + int.MaxValue;
-            }
-            new Span<byte>(p, (int)size).Clear();
-        }
-
-
-        /// <summary>
         /// 申请一个对象,通过FreeObject释放
         /// </summary>
         /// <returns></returns>
@@ -302,6 +285,22 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
+        /// 内存清0
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="size"></param>
+        public static void Zero(void* p, IntPtr size)
+        {
+            while (size > (nint)int.MaxValue)
+            {
+                new Span<byte>(p, int.MaxValue).Clear();
+                size -= int.MaxValue;
+                p = (byte*)p + int.MaxValue;
+            }
+            new Span<byte>(p, (int)size).Clear();
+        }
+
+        /// <summary>
         /// 释放AllocObject创建的对象
         /// </summary>
         /// <param name="obj"></param>
@@ -312,6 +311,31 @@ namespace IlyfairyLib.Unsafe
 #else
             Marshal.FreeHGlobal(GetPointerIntPtr(obj));
 #endif
+        }
+
+        /// <summary>
+        /// 初始化一个新的对象,不经过构造函数,由GC自动回收
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static unsafe object NewObject(Type type)
+        {
+            var handle = type.TypeHandle.Value;
+            var p = &handle;
+            var clone = AllocateUninitializedClone(IL.As<object>(p));
+            return clone;
+        }
+        /// <summary>
+        /// 初始化一个新的对象,不经过构造函数,由GC自动回收
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static unsafe T NewObject<T>() where T : class
+        {
+            var data = (typeof(T).TypeHandle.Value, IntPtr.Zero);
+            var p = &data;
+            var clone = AllocateUninitializedClone(IL.As<object>(p));
+            return System.Runtime.CompilerServices.Unsafe.As<T>(clone);
         }
 
         /// <summary>
@@ -466,9 +490,10 @@ namespace IlyfairyLib.Unsafe
         /// <param name="type"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
+        /// <exception cref="NotSupportedException">无法获取m_fieldHandle偏移地址</exception>
         public static int GetFieldOffset(Type type, string fieldName)
         {
-            if (m_fieldHandle_offset == -1) return -1;
+            if (m_fieldHandle_offset < 0) throw new NotSupportedException();
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfo == null) return -1;
             IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
