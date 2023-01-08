@@ -105,12 +105,12 @@ namespace IlyfairyLib.Unsafe
         {
             if (obj == null) return -1;
             IntPtr objptr = GetPointerIntPtr(obj);
-            IntPtr rawDataP = objptr + sizeof(IntPtr);
+            IntPtr rawDataPtr = objptr + sizeof(IntPtr);
             IntPtr objTable = *(IntPtr*)objptr;
             long size = (*(uint*)(objTable + 4)) - (2 * sizeof(nint));
             if ((*(uint*)objTable & 2147483648U) > 0)
             {
-                size += ((long)(*(ushort*)objTable) * (*(uint*)rawDataP));
+                size += ((long)(*(ushort*)objTable) * (*(uint*)rawDataPtr));
             }
             if (size < 0) size = -1;
             //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
@@ -413,7 +413,8 @@ namespace IlyfairyLib.Unsafe
             if (rank <= 1) rank = 0;
             IntPtr addr = GetObjectRawDataAddress(array);
             int offset = rank * 8;
-            var p = (byte*)addr + 8 + offset;
+            // arrDataPtr + (Length/Padding) + rank
+            var p = (byte*)addr + sizeof(nint) + offset;
 #endif
             return new Span<T>(p, checked((int)(len * (long)GetArrayItemSize(array) / sizeof(T))));
         }
