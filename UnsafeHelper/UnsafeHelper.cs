@@ -403,13 +403,18 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static Span<T> AsSpan<T>(this Array array/*, int rank*/)
         {
-            int rank = array.Rank;
             if (array == null) throw new ArgumentNullException(nameof(array));
-            if (rank <= 1) rank = 0;
-            IntPtr a = GetObjectRawDataAddress(array);
             int len = array.Length;
+#if NET6_0_OR_GREATER
+            var p = System.Runtime.CompilerServices.Unsafe.AsPointer(ref MemoryMarshal.GetArrayDataReference(array));
+#else
+            int rank = array.Rank;
+            if (rank <= 1) rank = 0;
+            IntPtr addr = GetObjectRawDataAddress(array);
             int offset = rank * 8;
-            return new Span<T>((byte*)a + 8 + offset, len);
+            var p = (byte*)addr + 8 + offset;
+#endif
+            return new Span<T>(p, (len * GetArrayItemSize(array)) / sizeof(T));
         }
 
         /// <summary>
@@ -473,7 +478,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
-            return (T*)(GetPointerIntPtr(str) + sizeof(IntPtr) * 2).ToPointer();
+            return (T*)(GetPointerIntPtr(str) + sizeof(IntPtr) + 8).ToPointer();
         }
 
         #region Field
