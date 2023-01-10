@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using IlyfairyLib.Unsafe.Internal;
-using CoreUnsafe = System.Runtime.CompilerServices.Unsafe;
+using UnsafeCore = System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 namespace IlyfairyLib.Unsafe
@@ -49,7 +49,7 @@ namespace IlyfairyLib.Unsafe
         /// <param name="val"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IntPtr GetPointer<T>(ref T val) => (IntPtr)CoreUnsafe.AsPointer(ref val);
+        public static IntPtr GetPointer<T>(ref T val) => (IntPtr)UnsafeCore.AsPointer(ref val);
         //{
         //    fixed(void* p = &val)
         //    {
@@ -140,7 +140,7 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetStructSize<T>() where T : struct => CoreUnsafe.SizeOf<T>();
+        public static int GetStructSize<T>() where T : struct => UnsafeCore.SizeOf<T>();
 
         /// <summary>
         /// 克隆一个对象
@@ -154,9 +154,9 @@ namespace IlyfairyLib.Unsafe
             T? newObj = CloneEmptyObject(obj); //克隆对象
             if (newObj == null) return null;
             long size = GetObjectRawDataSize(obj); //长度
-            IntPtr oldRef = GetObjectRawDataAddress(obj); //旧的地址引用
-            IntPtr newRef = GetObjectRawDataAddress(newObj); //新的地址引用
-            Buffer.MemoryCopy((void*)oldRef, (void*)newRef, size, size);
+            IntPtr oldPtr = GetObjectRawDataAddress(obj); //旧的地址
+            IntPtr newPtr = GetObjectRawDataAddress(newObj); //新的地址
+            Buffer.MemoryCopy((void*)oldPtr, (void*)newPtr, size, size);
             return newObj;
         }
 
@@ -213,10 +213,10 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T ChangeObjectHandle<T>(object obj)
+        public static T ChangeObjectHandle<T>(object obj) where T : class
         {
             *(IntPtr*)GetPointer(obj) = typeof(T).TypeHandle.Value;
-            return (T)obj;
+            return UnsafeCore.As<T>(obj);
         }
 
         /// <summary>
@@ -248,18 +248,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static T AllocObject<T>(IntPtr size) where T : class
         {
-#if NET6_0_OR_GREATER
-            var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
-#else
-            var p = Marshal.AllocHGlobal((size + sizeof(IntPtr)));
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
-            Zero((void*)p, (size + sizeof(IntPtr)));
-#endif
-            *(IntPtr*)p = typeof(T).TypeHandle.Value;
-            //var obj = CoreUnsafe.Read<T>(&p);
-            var obj = IL.As<T>(p);
-            return obj;
+            return UnsafeCore.As<T>(AllocObject(typeof(T), size));
         }
 
         /// <summary>
@@ -271,18 +260,7 @@ namespace IlyfairyLib.Unsafe
             var raw = GetObjectRawDataSize<T>();
             if (raw < 0) raw = 0;
             var size = (IntPtr)(raw + IntPtr.Size);
-#if NET6_0_OR_GREATER
-            var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
-#else
-            var p = (IntPtr)Marshal.AllocHGlobal((size + sizeof(IntPtr)));
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
-            Zero((void*)p, size + sizeof(IntPtr));
-#endif
-            *(IntPtr*)p = typeof(T).TypeHandle.Value;
-            //var obj = CoreUnsafe.Read<T>(&p);
-            var obj = IL.As<T>(p);
-            return obj;
+            return UnsafeCore.As<T>(AllocObject(typeof(T), size));
         }
 
         /// <summary>
@@ -321,9 +299,9 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe object NewObject(Type type)
         {
-            var handle = type.TypeHandle.Value;
-            var p = &handle;
-            var clone = AllocateUninitializedClone(IL.As<object>(p));
+            var data = (type.TypeHandle.Value, IntPtr.Zero, IntPtr.Zero); // handle data ptr
+            data.Item3 = new IntPtr(&data);
+            var clone = AllocateUninitializedClone(IL.As<object>(data.Item3));
             return clone;
         }
         /// <summary>
@@ -333,10 +311,7 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe T NewObject<T>() where T : class
         {
-            var data = (typeof(T).TypeHandle.Value, IntPtr.Zero);
-            var p = &data;
-            var clone = AllocateUninitializedClone(IL.As<object>(p));
-            return CoreUnsafe.As<T>(clone);
+            return UnsafeCore.As<T>(NewObject(typeof(T)));
         }
 
         /// <summary>
@@ -407,7 +382,7 @@ namespace IlyfairyLib.Unsafe
             if (array == null) throw new ArgumentNullException(nameof(array));
             int len = array.Length;
 #if NET6_0_OR_GREATER
-            var p = CoreUnsafe.AsPointer(ref MemoryMarshal.GetArrayDataReference(array));
+            var p = UnsafeCore.AsPointer(ref MemoryMarshal.GetArrayDataReference(array));
 #else
             int rank = array.Rank;
             if (rank <= 1) rank = 0;
@@ -489,9 +464,9 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="TValue"></typeparam>
         /// <param name="ptr"></param>
         /// <param name="value"></param>
-        public static void SetValue<TValue>(nint ptr, TValue value) => *(TValue*) ptr = value;
+        public static void SetValue<TValue>(nint ptr, TValue value) => *(TValue*)ptr = value;
         public static void SetValue<TValue>(void* ptr, TValue value) => *(TValue*)ptr = value;
-        public static void SetValue<TFrom, TValue>(ref TFrom ptr, TValue value) => CoreUnsafe.As<TFrom,TValue>(ref ptr) = value;
+        public static void SetValue<TFrom, TValue>(ref TFrom ptr, TValue value) => UnsafeCore.As<TFrom, TValue>(ref ptr) = value;
 
         #region Field
         /// <summary>
@@ -538,7 +513,7 @@ namespace IlyfairyLib.Unsafe
             if (addr == IntPtr.Zero) return false;
             if (value is ValueType)
             {
-                int size = CoreUnsafe.SizeOf<TValue>();
+                int size = UnsafeCore.SizeOf<TValue>();
                 if (size <= 0) return false;
                 IntPtr valueAddr = GetPointer(ref value);
                 Buffer.MemoryCopy((void*)valueAddr, (void*)addr, size, size);
