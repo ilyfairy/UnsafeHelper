@@ -455,7 +455,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
-            return (T*)(GetPointerIntPtr(str) + sizeof(IntPtr) + 8).ToPointer();
+            return (T*)(GetPointerIntPtr(str) + (sizeof(IntPtr) * 2)).ToPointer();
         }
 
         /// <summary>
