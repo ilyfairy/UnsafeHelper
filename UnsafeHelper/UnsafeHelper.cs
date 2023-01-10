@@ -97,13 +97,13 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取对象原始数据大小
+        /// 获取对象的数据区域在堆中的大小
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static long GetObjectRawDataSize<T>(T obj) where T : class
+        public static long GetObjectRawDataSize(object obj)
         {
-            if (obj == null) return -1;
+            if (obj == null) throw new ArgumentNullException(nameof(obj));
             IntPtr objptr = GetPointerIntPtr(obj);
             IntPtr rawDataPtr = objptr + sizeof(IntPtr);
             IntPtr objTable = *(IntPtr*)objptr;
@@ -118,14 +118,14 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取对象原始数据大小, 如果获取失败返回-1
+        /// 获取对象的数据区域在堆中的大小
         /// </summary>
         /// <returns></returns>
-        public static long GetObjectRawDataSize<T>() where T : class
+        public static long GetObjectRawDataSize<T>()
         {
-            IntPtr methodTable = typeof(T).TypeHandle.Value;
+            IntPtr methodTable = typeof(T).TypeHandle.Value;    
             long size = (*(uint*)(methodTable + 4)) - (2 * sizeof(nint));
-            if (size < 0) size = -1;
+            if (size < 0) size = 0;
             //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
             //IntPtr objTable = typeof(T).TypeHandle.Value;
@@ -180,7 +180,7 @@ namespace IlyfairyLib.Unsafe
         /// <param name="p"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToAddress(this UIntPtr p)
+        public static string ToAddress(this nuint p)
         {
             return "0x" + ((ulong)p).ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
         }
@@ -191,7 +191,7 @@ namespace IlyfairyLib.Unsafe
         /// <param name="p"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToAddress(this IntPtr p)
+        public static string ToAddress(this nint p)
         {
             return "0x" + p.ToString("X").PadLeft(sizeof(IntPtr) * 2, '0');
         }
@@ -225,21 +225,28 @@ namespace IlyfairyLib.Unsafe
         /// <param name="type"></param>
         /// <param name="size"></param>
         /// <returns></returns>
-        public static object AllocObject(Type type, IntPtr size)
+        public static object AllocObject(Type type, nint size)
         {
+            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
 #if NET6_0_OR_GREATER
             var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
 #else
             var p = (IntPtr)Marshal.AllocHGlobal((size + sizeof(IntPtr)));
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
-            Zero((void*)p, (size + sizeof(IntPtr)));
+            Zero((void*)p, checked((nuint)size + (nuint)sizeof(IntPtr)));
 #endif
             *(IntPtr*)p = type.TypeHandle.Value;
             //var obj = CoreUnsafe.Read<object>(&p);
             var obj = IL.As<object>(p);
             return obj;
         }
+
+        // TODO: nuint
+        //public static object AllocObject(Type type, nint size)
+        //{
+
+        //}
 
         /// <summary>
         /// 申请一个对象,通过FreeObject释放
@@ -257,9 +264,9 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static T AllocObject<T>() where T : class
         {
-            var raw = GetObjectRawDataSize<T>();
-            if (raw < 0) raw = 0;
-            var size = (IntPtr)(raw + IntPtr.Size);
+            var rawSize = GetObjectRawDataSize<T>();
+            if (rawSize < 0) rawSize = 0;
+            var size = (IntPtr)(rawSize + IntPtr.Size);
             return UnsafeCore.As<T>(AllocObject(typeof(T), size));
         }
 
@@ -268,9 +275,11 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="p"></param>
         /// <param name="size"></param>
-        public static void Zero(void* p, IntPtr size)
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static void Zero(void* p, nuint size)
         {
-            while (size > (nint)int.MaxValue)
+            //if ((void*)size < (void*)0) throw new ArgumentOutOfRangeException(nameof(size));
+            while (size > (nuint)int.MaxValue)
             {
                 new Span<byte>(p, int.MaxValue).Clear();
                 size -= int.MaxValue;
