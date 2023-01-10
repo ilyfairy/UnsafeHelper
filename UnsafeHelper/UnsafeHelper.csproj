@@ -13,6 +13,17 @@
 		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 
+	<!--<PropertyGroup Condition="'$(PlatformTarget)' == 'AnyCPU' or '$(PlatformTarget)' == ''">
+		<Prefer32Bit>false</Prefer32Bit>
+		<DefineConstants>TARGET_64BIT;$(DefineConstants)</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(PlatformTarget)' == 'x86'">
+		<DefineConstants>TARGET_32BIT;$(DefineConstants)</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(PlatformTarget)' == 'x64'">
+		<DefineConstants>TARGET_64BIT;$(DefineConstants)</DefineConstants>
+	</PropertyGroup>-->
+
 	<ItemGroup>
 	  <ProjectReference Include="..\UnsafeHelper.IL\UnsafeHelper.IL.ilproj" />
 	</ItemGroup>

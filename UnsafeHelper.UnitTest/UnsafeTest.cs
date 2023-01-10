@@ -95,8 +95,8 @@ namespace UnsafeHelperTest
         public void ObjectSize()
         {
             Assert.True(UnsafeHelper.GetStructSize<Foo>() == 24);
-            Assert.True(UnsafeHelper.GetObjectRawDataSize(new int[] { 1, 2 }) == 16);
-            Assert.True(UnsafeHelper.GetObjectRawDataSize<ChildClass>() == IntPtr.Size * 2);
+            Assert.True(UnsafeHelper.GetRawDataSize(new int[] { 1, 2 }) == 16);
+            Assert.True(UnsafeHelper.GetRawDataSize<ChildClass>() == IntPtr.Size * 2);
         }
 
         [Fact]

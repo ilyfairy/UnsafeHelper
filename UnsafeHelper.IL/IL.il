@@ -17,10 +17,19 @@
     ret
   }
 
-  .method public hidebysig static native int GetPointerIntPtr(object obj) cil managed aggressiveinlining
+  .method public hidebysig static uint8& GetMethodTableReference(object obj) cil managed aggressiveinlining
   {
     .maxstack 2
     ldarg.0
+    ldind.i
+    ret
+  }
+
+  .method public hidebysig static void* GetMethodTable(object obj) cil managed aggressiveinlining
+  {
+    .maxstack 2
+    ldarg.0
+    ldind.i
     ret
   }
   

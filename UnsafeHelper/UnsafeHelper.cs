@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using IlyfairyLib.Unsafe.Internal;
 using UnsafeCore = System.Runtime.CompilerServices.Unsafe;
 
@@ -27,21 +28,22 @@ namespace IlyfairyLib.Unsafe
             //var m_fieldHandleInfo = info.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             var m_fieldHandleInfo = typeof(FieldInfo).Assembly.GetType("System.Reflection.RtFieldInfo")?.GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (m_fieldHandleInfo == null) return;
-            var addr = (IntPtr*)GetObjectRawDataAddress(m_fieldHandleInfo);
-            var m_fieldHandle = (IntPtr)m_fieldHandleInfo.GetValue(m_fieldHandleInfo)!;
+            var addr = (nint*)GetRawDataPointer(m_fieldHandleInfo);
+            var m_fieldHandle = (nint)m_fieldHandleInfo.GetValue(m_fieldHandleInfo)!;
 
             //获取m_fieldHandle的偏移地址
-            int size = (int)GetObjectRawDataSize(m_fieldHandleInfo);
+            int size = (int)GetRawDataSize(m_fieldHandleInfo);
             for (int i = 0; i < size; i += 1)
             {
                 if (m_fieldHandle == addr[i])
                 {
-                    m_fieldHandle_offset = i * sizeof(IntPtr);
+                    m_fieldHandle_offset = i * sizeof(nint);
                     break;
                 }
             }
         }
 
+        #region GetPointer
         /// <summary>
         /// 获取引用的地址
         /// </summary>
@@ -49,7 +51,7 @@ namespace IlyfairyLib.Unsafe
         /// <param name="val"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IntPtr GetPointer<T>(ref T val) => (IntPtr)UnsafeCore.AsPointer(ref val);
+        public static byte* GetPointer<T>(ref T val) => (byte*)UnsafeCore.AsPointer(ref val);
         //{
         //    fixed(void* p = &val)
         //    {
@@ -63,26 +65,33 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void* GetPointer(object obj) => IL.GetPointer(obj);
+        public static byte* GetPointer(object obj) => (byte*)IL.GetPointer(obj);
+        #endregion
 
-        /// <summary>
-        /// 获取对象实例的地址(Handle的位置)
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns>address</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IntPtr GetPointerIntPtr(object obj) => IL.GetPointerIntPtr(obj);
-
+        #region GetRawData
         /// <summary>
         /// 获取对象数据区域的地址
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IntPtr GetObjectRawDataAddress(object obj)
-        {
-            return GetPointerIntPtr(obj) + IntPtr.Size;
-        }
+        public static ref byte GetRawDataReference(object obj) => ref (*((byte*)GetPointer(obj) + IntPtr.Size));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte* GetRawDataPointer(object obj) => (byte*)GetPointer(obj) + sizeof(nint);
+        #endregion
+
+        #region GetMethodTable
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref MethodTable GetMethodTableReference(object obj) => ref UnsafeCore.As<byte,MethodTable>(ref IL.GetMethodTableReference(obj));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static MethodTable* GetMethodTable(object obj) => (MethodTable*)IL.GetMethodTable(obj);
+        #endregion
+
+        #region GetObjectHeader
+
+        #endregion
 
         /// <summary>
         /// 获取对象数据的Span
@@ -91,22 +100,22 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static Span<T> GetObjectRawDataAsSpan<T>(object obj) where T : unmanaged
         {
-            IntPtr first = GetObjectRawDataAddress(obj);
-            ulong size = (ulong)GetObjectRawDataSize(obj) / (ulong)sizeof(T);
-            return new Span<T>((void*)first, (int)size);
+            byte* first = GetRawDataPointer(obj);
+            ulong size = (ulong)GetRawDataSize(obj) / (ulong)sizeof(T);
+            return new Span<T>((void*)first, checked((int)size));
         }
 
         /// <summary>
-        /// 获取对象原始数据大小
+        /// 获取对象的数据区域在堆中的大小
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static long GetObjectRawDataSize<T>(T obj) where T : class
+        public static long GetRawDataSize(object obj)
         {
-            if (obj == null) return -1;
-            IntPtr objptr = GetPointerIntPtr(obj);
-            IntPtr rawDataPtr = objptr + sizeof(IntPtr);
-            IntPtr objTable = *(IntPtr*)objptr;
+            if (obj == null) throw new ArgumentNullException(nameof(obj));
+            byte* objptr = GetPointer(obj);
+            byte* rawDataPtr = objptr + sizeof(nint);
+            nint objTable = *(nint*)objptr;
             long size = (*(uint*)(objTable + 4)) - (2 * sizeof(nint));
             if ((*(uint*)objTable & 2147483648U) > 0)
             {
@@ -118,14 +127,14 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取对象原始数据大小, 如果获取失败返回-1
+        /// 获取对象的数据区域在堆中的大小
         /// </summary>
         /// <returns></returns>
-        public static long GetObjectRawDataSize<T>() where T : class
+        public static long GetRawDataSize<T>()
         {
-            IntPtr methodTable = typeof(T).TypeHandle.Value;
+            nint methodTable = typeof(T).TypeHandle.Value;    
             long size = (*(uint*)(methodTable + 4)) - (2 * sizeof(nint));
-            if (size < 0) size = -1;
+            if (size < 0) size = 0;
             //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
             return size;
             //IntPtr objTable = typeof(T).TypeHandle.Value;
@@ -140,7 +149,7 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetStructSize<T>() where T : struct => UnsafeCore.SizeOf<T>();
+        public static int GetStructSize<T>() where T : struct => sizeof(T);
 
         /// <summary>
         /// 克隆一个对象
@@ -153,10 +162,11 @@ namespace IlyfairyLib.Unsafe
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             T? newObj = CloneEmptyObject(obj); //克隆对象
             if (newObj == null) return null;
-            long size = GetObjectRawDataSize(obj); //长度
-            IntPtr oldPtr = GetObjectRawDataAddress(obj); //旧的地址
-            IntPtr newPtr = GetObjectRawDataAddress(newObj); //新的地址
+            long size = GetRawDataSize(obj); //长度
+            byte* oldPtr = GetRawDataPointer(obj); //旧的地址
+            byte* newPtr = GetRawDataPointer(newObj); //新的地址
             Buffer.MemoryCopy((void*)oldPtr, (void*)newPtr, size, size);
+            GC.KeepAlive(obj);
             return newObj;
         }
 
@@ -174,27 +184,40 @@ namespace IlyfairyLib.Unsafe
             return (T)AllocateUninitializedClone(obj);
         }
 
+        #region ToStringAddress
         /// <summary>
         /// 返回地址字符串
         /// </summary>
-        /// <param name="p"></param>
+        /// <param name="ptr"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToAddress(this UIntPtr p)
+        public static string ToAddress(this nuint ptr)
         {
-            return "0x" + ((ulong)p).ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
+            //int size = 2 + sizeof(nint);
+            //var str = new string('\0', 0);
+            //fixed (char* p = str)
+            //{
+            //    p[0] = '0';
+            //    p[1] = 'x';
+            //    for (int i = 2; i < size; i++)
+            //    {
+                    
+            //    }
+            //}
+            return "0x" + ((ulong)ptr).ToString("X").PadLeft(sizeof(UIntPtr) * 2, '0');
         }
 
         /// <summary>
         /// 返回地址字符串
         /// </summary>
-        /// <param name="p"></param>
+        /// <param name="ptr"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToAddress(this IntPtr p)
+        public static string ToAddress(this nint ptr)
         {
-            return "0x" + p.ToString("X").PadLeft(sizeof(IntPtr) * 2, '0');
+            return "0x" + ptr.ToString("X").PadLeft(sizeof(IntPtr) * 2, '0');
         }
+        #endregion
 
         /// <summary>
         /// 修改对象类型(Handle)
@@ -225,21 +248,28 @@ namespace IlyfairyLib.Unsafe
         /// <param name="type"></param>
         /// <param name="size"></param>
         /// <returns></returns>
-        public static object AllocObject(Type type, IntPtr size)
+        public static object AllocObject(Type type, nint size)
         {
+            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
 #if NET6_0_OR_GREATER
             var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
 #else
             var p = (IntPtr)Marshal.AllocHGlobal((size + sizeof(IntPtr)));
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
-            Zero((void*)p, (size + sizeof(IntPtr)));
+            Zero((void*)p, checked((nuint)size + (nuint)sizeof(IntPtr)));
 #endif
             *(IntPtr*)p = type.TypeHandle.Value;
             //var obj = CoreUnsafe.Read<object>(&p);
             var obj = IL.As<object>(p);
             return obj;
         }
+
+        // TODO: nuint
+        //public static object AllocObject(Type type, nint size)
+        //{
+
+        //}
 
         /// <summary>
         /// 申请一个对象,通过FreeObject释放
@@ -257,9 +287,9 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static T AllocObject<T>() where T : class
         {
-            var raw = GetObjectRawDataSize<T>();
-            if (raw < 0) raw = 0;
-            var size = (IntPtr)(raw + IntPtr.Size);
+            var rawSize = GetRawDataSize<T>();
+            if (rawSize < 0) rawSize = 0;
+            var size = (IntPtr)(rawSize + IntPtr.Size);
             return UnsafeCore.As<T>(AllocObject(typeof(T), size));
         }
 
@@ -268,9 +298,11 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="p"></param>
         /// <param name="size"></param>
-        public static void Zero(void* p, IntPtr size)
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static void Zero(void* p, nuint size)
         {
-            while (size > (nint)int.MaxValue)
+            //if ((void*)size < (void*)0) throw new ArgumentOutOfRangeException(nameof(size));
+            while (size > (nuint)int.MaxValue)
             {
                 new Span<byte>(p, int.MaxValue).Clear();
                 size -= int.MaxValue;
@@ -288,7 +320,7 @@ namespace IlyfairyLib.Unsafe
 #if NET6_0_OR_GREATER
             NativeMemory.Free(GetPointer(obj));
 #else
-            Marshal.FreeHGlobal(GetPointerIntPtr(obj));
+            Marshal.FreeHGlobal((nint)GetPointer(obj));
 #endif
         }
 
@@ -336,13 +368,13 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static bool CompareRaw(object obj1, object obj2)
         {
-            long obj1size = UnsafeHelper.GetObjectRawDataSize(obj1);
-            long obj2size = UnsafeHelper.GetObjectRawDataSize(obj2);
+            long obj1size = UnsafeHelper.GetRawDataSize(obj1);
+            long obj2size = UnsafeHelper.GetRawDataSize(obj2);
             if (obj1size != obj2size) return false;
 
             ulong lenByte = (uint)obj1size;
-            IntPtr r1 = GetObjectRawDataAddress(obj1);
-            IntPtr r2 = GetObjectRawDataAddress(obj2);
+            byte* r1 = GetRawDataPointer(obj1);
+            byte* r2 = GetRawDataPointer(obj2);
 
             void* p1 = (void*)r1, p2 = (void*)r2;
             if (lenByte % 8 == 0)
@@ -386,7 +418,7 @@ namespace IlyfairyLib.Unsafe
 #else
             int rank = array.Rank;
             if (rank <= 1) rank = 0;
-            IntPtr addr = GetObjectRawDataAddress(array);
+            byte* addr = GetRawDataPointer(array);
             int offset = rank * 8;
             // arrDataPtr + (Length/Padding) + rank
             var p = (byte*)addr + sizeof(nint) + offset;
@@ -407,10 +439,10 @@ namespace IlyfairyLib.Unsafe
             if (parentObj == null) throw new ArgumentNullException(nameof(parentObj));
             if (childObj == null) throw new ArgumentNullException(nameof(childObj));
 
-            IntPtr old = GetObjectRawDataAddress(parentObj);
-            IntPtr data = GetObjectRawDataAddress(childObj);
+            byte* old = GetRawDataPointer(parentObj);
+            byte* data = GetRawDataPointer(childObj);
 
-            long len = GetObjectRawDataSize(parentObj);
+            long len = GetRawDataSize(parentObj);
 
             Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
         }
@@ -428,10 +460,10 @@ namespace IlyfairyLib.Unsafe
             if (parentObj == null) throw new ArgumentNullException(nameof(parentObj));
             if (childObj == null) throw new ArgumentNullException(nameof(childObj));
 
-            IntPtr old = GetObjectRawDataAddress(childObj);
-            IntPtr data = GetObjectRawDataAddress(parentObj);
+            byte* old = GetRawDataPointer(childObj);
+            byte* data = GetRawDataPointer(parentObj);
 
-            long len = GetObjectRawDataSize(parentObj);
+            long len = GetRawDataSize(parentObj);
 
             Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
         }
@@ -455,7 +487,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
-            return (T*)(GetPointerIntPtr(str) + (sizeof(IntPtr) * 2)).ToPointer();
+            return (T*)(GetPointer(str) + (sizeof(IntPtr) * 2));
         }
 
         /// <summary>
@@ -467,6 +499,51 @@ namespace IlyfairyLib.Unsafe
         public static void SetValue<TValue>(nint ptr, TValue value) => *(TValue*)ptr = value;
         public static void SetValue<TValue>(void* ptr, TValue value) => *(TValue*)ptr = value;
         public static void SetValue<TFrom, TValue>(ref TFrom ptr, TValue value) => UnsafeCore.As<TFrom, TValue>(ref ptr) = value;
+
+        /// <summary>
+        /// 设置值<br/>
+        /// 如果是class,自动设置它的RawData的值<br/>
+        /// 如果是struct,自动设置它的值
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetValueAuto<TValue>(nint ptr, TValue value) => SetValueAuto((void*)ptr, value);
+
+        /// <summary>
+        /// 设置值<br/>
+        /// 如果是class,自动设置它的RawData的值<br/>
+        /// 如果是struct,自动设置它的值
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetValueAuto<TFrom, TValue>(ref TFrom ptr, TValue value) => SetValueAuto(GetPointer(ref ptr), value);
+
+        /// <summary>
+        /// 设置值<br/>
+        /// 如果是class,自动设置它的RawData的值<br/>
+        /// 如果是struct,自动设置它的值
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetValueAuto<TValue>(void* ptr, TValue value)
+        {
+            if(value is ValueType)
+            {
+                *(TValue*)ptr = value;
+            }
+            else
+            {
+                var data = GetRawDataPointer(value);
+                var size = GetRawDataSize(value);
+                Buffer.MemoryCopy(data, (void*)ptr, size, size);
+            }
+        }
+
+#if NET7_0_OR_GREATER
+        public static void Copy(void* source,void* destination, nint size) => NativeMemory.Copy(source, destination, size, size);
+        public static void Copy(void* source,void* destination, nuint size) => NativeMemory.Copy(source, destination, size, size);
+#else
+        public static void Copy(void* source,void* destination, nint size) => Buffer.MemoryCopy(source, destination, size, size);
+        public static void Copy(void* source,void* destination, nuint size) => Buffer.MemoryCopy(source, destination, size, size);
+#endif
+
 
         #region Field
         /// <summary>
@@ -488,7 +565,7 @@ namespace IlyfairyLib.Unsafe
             if (m_fieldHandle_offset < 0) throw new NotSupportedException();
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfo == null) return -1;
-            IntPtr fieldInfoAddr = GetObjectRawDataAddress(fieldInfo);
+            byte* fieldInfoAddr = GetRawDataPointer(fieldInfo);
             IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
             return *(ushort*)(fieldHandle + sizeof(IntPtr) + 4);
         }
@@ -500,71 +577,72 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        public static IntPtr GetFieldAddress<T>(T obj, string fieldName) where T : class
+        public static byte* GetFieldPointer<T>(T obj, string fieldName) where T : class
         {
-            if (obj == null) return IntPtr.Zero;
+            if (obj == null) return null;
             int offset = GetFieldOffset(obj.GetType(), fieldName);
-            if (offset == -1) return IntPtr.Zero;
-            return GetObjectRawDataAddress(obj) + offset;
+            if (offset == -1) return null;
+            return GetRawDataPointer(obj) + offset;
         }
 
-        private static bool SetFieldValue<TValue>(IntPtr addr, TValue value)
-        {
-            if (addr == IntPtr.Zero) return false;
-            if (value is ValueType)
-            {
-                int size = UnsafeCore.SizeOf<TValue>();
-                if (size <= 0) return false;
-                IntPtr valueAddr = GetPointer(ref value);
-                Buffer.MemoryCopy((void*)valueAddr, (void*)addr, size, size);
-            }
-            else
-            {
-                if (value == null)
-                {
-                    *(IntPtr*)addr = IntPtr.Zero;
-                }
-                else
-                {
-                    IntPtr val = GetPointerIntPtr(value);
-                    *(IntPtr*)addr = val;
-                }
-            }
-            return true;
-        }
+        //private static bool SetFieldValue<TValue>(nint addr, TValue value)
+        //{
+        //    if (addr == 0) return false;
+        //    if (value is ValueType)
+        //    {
+        //        int size = UnsafeCore.SizeOf<TValue>();
+        //        if (size <= 0) return false;
+        //        byte* valueAddr = GetPointer(ref value);
+        //        Buffer.MemoryCopy((void*)valueAddr, (void*)addr, size, size);
+        //    }
+        //    else
+        //    {
+        //        if (value == null)
+        //        {
+        //            *(IntPtr*)addr = IntPtr.Zero;
+        //        }
+        //        else
+        //        {
+        //            SetValue()
+        //            nint val = GetPointer(value);
+        //            *(IntPtr*)addr = val;
+        //        }
+        //    }
+        //    return true;
+        //}
 
-        /// <summary>
-        /// 设置Object字段的值
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="TValue"></typeparam>
-        /// <param name="obj"></param>
-        /// <param name="fieldName"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public static bool SetObjectFieldValue<T, TValue>(T obj, string fieldName, TValue value) where T : class
-        {
-            IntPtr addr = GetFieldAddress(obj, fieldName);
-            if (addr == IntPtr.Zero) return false;
-            return SetFieldValue(addr, value);
-        }
+        ///// <summary>
+        ///// 设置Object字段的值
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <typeparam name="TValue"></typeparam>
+        ///// <param name="obj"></param>
+        ///// <param name="fieldName"></param>
+        ///// <param name="value"></param>
+        ///// <returns></returns>
+        //public static bool SetObjectFieldValue<T, TValue>(T obj, string fieldName, TValue value) where T : class
+        //{
+        //    IntPtr addr = GetFieldPointer(obj, fieldName);
+        //    if (addr == IntPtr.Zero) return false;
+        //    return SetFieldValue(addr, value);
+        //}
 
-        /// <summary>
-        /// 设置Struct字段的值
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="TValue"></typeparam>
-        /// <param name="obj"></param>
-        /// <param name="fieldName"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public static bool SetStructFieldValue<T, TValue>(ref T obj, string fieldName, TValue value) where T : struct
-        {
-            int offset = GetFieldOffset(typeof(T), fieldName);
-            if (offset == -1) return false;
-            IntPtr addr = GetPointer(ref obj) + offset;
-            return SetFieldValue(addr, value);
-        }
+        ///// <summary>
+        ///// 设置Struct字段的值
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <typeparam name="TValue"></typeparam>
+        ///// <param name="obj"></param>
+        ///// <param name="fieldName"></param>
+        ///// <param name="value"></param>
+        ///// <returns></returns>
+        //public static bool SetStructFieldValue<T, TValue>(ref T obj, string fieldName, TValue value) where T : struct
+        //{
+        //    int offset = GetFieldOffset(typeof(T), fieldName);
+        //    if (offset == -1) return false;
+        //    byte* addr = GetPointer(ref obj) + offset;
+        //    return SetFieldValue(addr, value);
+        //}
         #endregion
 
 
