@@ -16,7 +16,7 @@ public unsafe class ManagedObject<T> where T : class
     /// </summary>
     private readonly byte[] data;
     public int Size => data.Length;
-    public nint* Handle => (nint*)(UnsafeHelper.GetObjectRawDataAddress(data) + 8);
+    public nint* Handle => (nint*)(UnsafeHelper.GetRawDataPointer(data) + 8);
     public T Object { get; private set; }
     private readonly GCHandle gcHandle;
     private ManagedObject(byte[] data, object obj)
