@@ -23,9 +23,29 @@ namespace UnsafeHelperTest
         public unsafe void GetObjectPointer()
         {
             object obj = new object();
-            var p1 = (void*)*(object**)Unsafe.AsPointer(ref obj);
+            var p1 = *(void**)&obj;
             var p2 = UnsafeHelper.GetPointer(obj);
             Assert.True(p1 == p2);
+        }
+
+        [Fact]
+        public unsafe void GetObjectMethodTable()
+        {
+            object obj = new object();
+            var p1 = (void*)UnsafeHelper.GetMethodTable(obj);
+            var p2 = (void*)typeof(object).TypeHandle.Value;
+            Assert.True(p1 == p2);
+        }
+
+        [Fact]
+        public unsafe void GetObjectRawDataPointer()
+        {
+            IntClass ic = new IntClass
+            {
+                A = 0x123456
+            };
+            var a = *(int*)UnsafeHelper.GetObjectRawDataAddress(ic);
+            Assert.True(a == 0x123456);
         }
 
         [Fact]
@@ -77,7 +97,7 @@ namespace UnsafeHelperTest
         [Fact]
         public void AllocObject()
         {
-            var obj = UnsafeHelper.AllocObject(typeof(long), (IntPtr)8);
+            var obj = UnsafeHelper.AllocObject(typeof(long), (UIntPtr)8);
             Assert.True(obj != null);
             var str = obj.ToString();
             Assert.True(str == "0");
@@ -127,6 +147,10 @@ namespace UnsafeHelperTest
     internal class ChildClass : ParentClass //nint*2字节
     {
         public string B; //offset:nint
+    }
+    internal class IntClass
+    {
+        public int A;
     }
 }
 #pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type

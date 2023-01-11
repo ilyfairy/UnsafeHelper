@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "UnsafeHelper": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_JitDisasm": "IlyfairyLib.Unsafe.UnsafeHelper:*",
+        "DOTNET_TieredCompilation": "0"
+      }
+    }
+  }
+}
