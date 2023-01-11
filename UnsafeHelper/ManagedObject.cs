@@ -1,5 +1,4 @@
-﻿using IlyfairyLib.Unsafe.Internal;
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
 namespace IlyfairyLib.Unsafe;
@@ -31,7 +30,7 @@ public unsafe class ManagedObject<T> where T : class
         data = new byte[size];
         var handle = Handle;
         *handle = typeof(T).TypeHandle.Value;
-        Object = IL.As<T>(handle);
+        Object = System.Runtime.CompilerServices.Unsafe.Read<T>(&handle);
         gcHandle = GCHandle.Alloc(Object);
     }
     ~ManagedObject()

@@ -2,47 +2,78 @@
 
 namespace IlyfairyLib.Unsafe
 {
-    //    [StructLayout(LayoutKind.Explicit)]
-    //    public unsafe struct MethodTable
-    //    {
-    //        public const int PtrSize =
-    //#if TARGET_64BIT
-    //        8
-    //#else
-    //            4
-    //#endif
-    //            ;
+//    /// <summary>
+//    /// 方法表
+//    /// </summary>
+//    [StructLayout(LayoutKind.Explicit)]
+//    public unsafe struct MethodTable
+//    {
+//        public const int PtrSize =
+//#if TARGET_64BIT
+//            8
+//#else
+//            4
+//#endif
+//            ;
 
-    //        [FieldOffset(0)]
-    //        public ushort ComponentSize;
+//        /// <summary>
+//        /// <see cref="Array"/> 或 <see langword="string"/> 的每个元素大小
+//        /// </summary>
+//        [FieldOffset(0)]
+//        public ushort ComponentSize; // m_dwFlags lower 16bits
 
-    //        [FieldOffset(0)]
-    //        public uint Flags;
+//        /// <summary>
+//        /// 低16位表示 <see cref="Array"/> 或 <see langword="string"/> 的每个元素大小
+//        /// </summary>
+//        [FieldOffset(0)]
+//        public uint Flags; // m_dwFlags
 
-    //        [FieldOffset(4)]
-    //        public uint BaseSize;
+//        /// <summary>
+//        /// 申请本类型实例时将使用多少字节
+//        /// </summary>
+//        [FieldOffset(4)]
+//        public uint BaseSize; // m_BaseSize
 
-    //        // 0x8: m_wFlags2
+//        // 0x8: m_wFlags2
 
-    //        // 0xA: m_wToken
+//        // 0xA: m_wToken
 
-    //        [FieldOffset(0xC)]
-    //        public ushort VirtualsCount;
+//        /// <summary>
+//        /// 虚方法计数
+//        /// </summary>
+//        [FieldOffset(0xC)]
+//        public ushort VirtualsCount; // m_wNumVirtuals
 
-    //        [FieldOffset(0xE)]
-    //        public ushort InterfaceCount;
+//        /// <summary>
+//        /// 实现接口计数
+//        /// </summary>
+//        [FieldOffset(0xE)]
+//        public ushort InterfaceCount; // m_wNumInterfaces
 
-    //        [FieldOffset(0x10)]
-    //        public MethodTable* ParentMethodTable;
+//        /// <summary>
+//        /// 父类方法表指针
+//        /// </summary>
+//        [FieldOffset(0x10)]
+//        public MethodTable* ParentMethodTable; // m_pParentMethodTable
 
-    //        [FieldOffset(0x10 + 4 * PtrSize)]
-    //        public void* ElementType;
+//        /// <summary>
+//        /// per-instantiation information
+//        /// </summary>
+//        [FieldOffset(0x10 + 4 * PtrSize)]
+//        public void* PerInstInfo; // m_pPerInstInfo
 
-    //        [FieldOffset(0x10 + 5 * PtrSize)]
-    //        public MethodTable** InterfaceMap;
-    //    }
+//        /// <summary>
+//        /// 数组成员类型的 <see cref="RuntimeTypeHandle.Value"/>
+//        /// </summary>
+//        [FieldOffset(0x10 + 4 * PtrSize)]
+//        public void* ElementType; // m_ElementTypeHnd
 
-
+//        /// <summary>
+//        /// 实现接口方法表
+//        /// </summary>
+//        [FieldOffset(0x10 + 5 * PtrSize)]
+//        public MethodTable** InterfaceMap; // m_pInterfaceMap
+//    }
 
     /// <summary>
     /// Subset of src\vm\methodtable.h
