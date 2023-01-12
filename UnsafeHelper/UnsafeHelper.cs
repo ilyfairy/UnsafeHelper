@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using IlyfairyLib.Unsafe.Internal;
+//using IlyfairyLib.Unsafe.Internal;
 using UnsafeCore = System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
@@ -329,21 +329,20 @@ namespace IlyfairyLib.Unsafe
         /// <param name="type"></param>
         /// <param name="size"></param>
         /// <returns></returns>
-        public static object AllocObject(Type type, nint size)
+        public static object AllocObject(Type type, nuint size)
         {
             if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
 #if NET6_0_OR_GREATER
-            var p = NativeMemory.AllocZeroed(objSize);
+            var p = NativeMemory.AllocZeroed(size);
             if (p == null) throw new OutOfMemoryException();
 #else
-            var p = Marshal.AllocHGlobal((nint)objSize);
+            var p = Marshal.AllocHGlobal((nint)size);
             if (p == IntPtr.Zero) throw new OutOfMemoryException();
             Zero((void*)p, checked((nuint)size + (nuint)sizeof(IntPtr)));
 #endif
             *(IntPtr*)p = type.TypeHandle.Value;
             //var obj = CoreUnsafe.Read<object>(&p);
-            var obj = IL.As<object>(p);
-            return obj;
+            return *(object*)&p;
         }
 
         // TODO: nuint
@@ -371,8 +370,8 @@ namespace IlyfairyLib.Unsafe
         {
             var rawSize = GetRawDataSize<T>();
             if (rawSize < 0) rawSize = 0;
-            var size = (IntPtr)(rawSize + IntPtr.Size);
-            return UnsafeCore.As<T>(AllocObject(typeof(T), size));
+            var size = (uint)(rawSize + IntPtr.Size);
+            return UnsafeCore.As<T>(AllocObject(typeof(T), (nuint)size));
         }
 
         /// <summary>
@@ -414,7 +413,7 @@ namespace IlyfairyLib.Unsafe
         {
             var data = (type.TypeHandle.Value, IntPtr.Zero, IntPtr.Zero); // handle data ptr
             data.Item3 = new IntPtr(&data);
-            var clone = AllocateUninitializedClone(IL.As<object>(data.Item3));
+            var clone = AllocateUninitializedClone(*(object*)&data.Item3);
             return clone;
         }
         /// <summary>
@@ -542,7 +541,7 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T* ToPointer<T>(this T[] str) // where T : unmanaged
         {
-            return (T*)(GetPointer(str) + (sizeof(IntPtr) * 2));
+            return (T*)((byte*)GetPointer(str) + (sizeof(IntPtr) * 2));
         }
 
         /// <summary>
@@ -592,8 +591,8 @@ namespace IlyfairyLib.Unsafe
         }
 
 #if NET7_0_OR_GREATER
-        public static void Copy(void* source,void* destination, nint size) => NativeMemory.Copy(source, destination, size, size);
-        public static void Copy(void* source,void* destination, nuint size) => NativeMemory.Copy(source, destination, size, size);
+        public static void Copy(void* source,void* destination, nint size) => NativeMemory.Copy(source, destination, checked((nuint)size));
+        public static void Copy(void* source,void* destination, nuint size) => NativeMemory.Copy(source, destination, size);
 #else
         public static void Copy(void* source,void* destination, nint size) => Buffer.MemoryCopy(source, destination, size, size);
         public static void Copy(void* source,void* destination, nuint size) => Buffer.MemoryCopy(source, destination, size, size);
