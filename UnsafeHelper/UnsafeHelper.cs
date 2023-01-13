@@ -440,25 +440,25 @@ namespace IlyfairyLib.Unsafe
             return MemoryMarshal.CreateSpan<char>(ref MemoryMarshal.GetReference(span), span.Length);
         }
 
-        /// <summary>
-        /// 比较两个对象的原始数据是否相等<br/>不比较类型
-        /// </summary>
-        /// <param name="obj1"></param>
-        /// <param name="obj2"></param>
-        /// <returns></returns>
-        public static bool CompareRaw(object obj1, object obj2)
-        {
-            long obj1size = UnsafeHelper.GetRawDataSize(obj1);
-            long obj2size = UnsafeHelper.GetRawDataSize(obj2);
-            if (obj1size != obj2size) return false;
+        ///// <summary>
+        ///// 比较两个对象的原始数据是否相等<br/>不比较类型
+        ///// </summary>
+        ///// <param name="obj1"></param>
+        ///// <param name="obj2"></param>
+        ///// <returns></returns>
+        //public static bool CompareRaw(object obj1, object obj2)
+        //{
+        //    long obj1size = UnsafeHelper.GetRawDataSize(obj1);
+        //    long obj2size = UnsafeHelper.GetRawDataSize(obj2);
+        //    if (obj1size != obj2size) return false;
 
-            ulong lenByte = (uint)obj1size;
-            byte* r1 = GetRawDataPointer(obj1);
-            byte* r2 = GetRawDataPointer(obj2);
+        //    ulong lenByte = (uint)obj1size;
+        //    byte* r1 = GetRawDataPointer(obj1);
+        //    byte* r2 = GetRawDataPointer(obj2);
 
-            return true;
-            // Call SpanHelpers.SequenceEqual
-        }
+        //    return true;
+        //    // Call SpanHelpers.SequenceEqual
+        //}
 
         /// <summary>
         /// 将[多维]数组转换为Span
