@@ -173,18 +173,20 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static long GetRawDataSize(object obj)
+        public static nuint GetRawDataSize(object obj)
         {
             [DoesNotReturn]
             static void Throw() => throw new ArgumentNullException(nameof(obj));
             if (obj == null) Throw();
             ref MethodTable mt = ref GetMethodTableReference(obj);
             nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
-            if ((mt.Flags >> 31) != 0)
+            //if ((mt.Flags >> 31) != 0) // HasComponentSizeFlag = 0x80000000
+            //if (BitConverter.IsLittleEndian ? (mt.Flags >> 31) != 0 : (uint)(byte)mt.Flags >> 31 != 0)
+            if ((int)mt.Flags < 0)
             {
                 rawSize += UnsafeCore.As<byte, uint>(ref GetRawDataReference(obj)) * (nuint)mt.ComponentSize;
             }
-            return (nint)rawSize;
+            return rawSize;
         }
 
         /// <summary>
@@ -203,19 +205,19 @@ namespace IlyfairyLib.Unsafe
             return mt.BaseSize - (2 * (uint)sizeof(nuint)) & -UnsafeCore.As<bool, byte>(ref empty); // 对于 Array 类型, 由于长度在实例中, 不计算数组成员所占大小
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static nuint GetRawObjectDataSize(object obj) // System.Runtime.CompilerServices.RuntimeHelpers.GetRawObjectDataSize
-        {
-            ref MethodTable mt = ref GetMethodTableReference(obj);
-            nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
-            //if ((mt.Flags >> 31) != 0) // HasComponentSizeFlag = 0x80000000
-            //if (BitConverter.IsLittleEndian ? (mt.Flags >> 31) != 0 : (uint)(byte)mt.Flags >> 31 != 0)
-            if((int)mt.Flags < 0)
-            {
-                rawSize += UnsafeCore.As<byte, uint>(ref GetRawDataReference(obj)) * (nuint)mt.ComponentSize;
-            }
-            return rawSize;
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        //public static nuint GetRawObjectDataSize(object obj) // System.Runtime.CompilerServices.RuntimeHelpers.GetRawObjectDataSize
+        //{
+        //    ref MethodTable mt = ref GetMethodTableReference(obj);
+        //    nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
+        //    //if ((mt.Flags >> 31) != 0) // HasComponentSizeFlag = 0x80000000
+        //    //if (BitConverter.IsLittleEndian ? (mt.Flags >> 31) != 0 : (uint)(byte)mt.Flags >> 31 != 0)
+        //    if((int)mt.Flags < 0)
+        //    {
+        //        rawSize += UnsafeCore.As<byte, uint>(ref GetRawDataReference(obj)) * (nuint)mt.ComponentSize;
+        //    }
+        //    return rawSize;
+        //}
 
         /// <summary>
         /// 获取结构体大小
@@ -502,9 +504,9 @@ namespace IlyfairyLib.Unsafe
             byte* old = GetRawDataPointer(parentObj);
             byte* data = GetRawDataPointer(childObj);
 
-            long len = GetRawDataSize(parentObj);
+            var len = GetRawDataSize(parentObj);
 
-            Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
+            Copy((void*)old, (void*)data, len);
         }
 
         /// <summary>
@@ -523,9 +525,9 @@ namespace IlyfairyLib.Unsafe
             byte* old = GetRawDataPointer(childObj);
             byte* data = GetRawDataPointer(parentObj);
 
-            long len = GetRawDataSize(parentObj);
+            var len = GetRawDataSize(parentObj);
 
-            Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
+            Copy((void*)old, (void*)data, len);
         }
 
         /// <summary>
