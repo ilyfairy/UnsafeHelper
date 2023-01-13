@@ -411,9 +411,12 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe object NewObject(Type type)
         {
-            var data = (type.TypeHandle.Value, IntPtr.Zero, IntPtr.Zero); // handle data ptr
-            data.Item3 = new IntPtr(&data);
-            var clone = AllocateUninitializedClone(*(object*)&data.Item3);
+            var data = (
+                SyncBlock: IntPtr.Zero,
+                MethodTablePtr: typeof(int).TypeHandle.Value,
+                RawData: 20);
+            var obj = &data;
+            var clone = AllocateUninitializedClone(*(object*)&obj);
             return clone;
         }
         /// <summary>
@@ -529,7 +532,8 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static int GetArrayItemSize(Array array)
         {
-            return *(ushort*)array.GetType().TypeHandle.Value;
+            return GetMethodTablePointer(array)->ComponentSize;
+            //return *(ushort*)array.GetType().TypeHandle.Value;
         }
 
         /// <summary>
@@ -609,6 +613,7 @@ namespace IlyfairyLib.Unsafe
 
         /// <summary>
         /// 获取字段偏移
+        /// 最大只能获取到65535的偏移
         /// </summary>
         /// <param name="type"></param>
         /// <param name="fieldName"></param>
