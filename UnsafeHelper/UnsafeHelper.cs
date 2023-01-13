@@ -193,7 +193,7 @@ namespace IlyfairyLib.Unsafe
         /// 获取对象的数据区域在堆中的大小, 不计算<see cref="System.Array"/>和<see cref="System.String"/>的成员大小
         /// </summary>
         /// <returns></returns>
-        public static long GetRawDataSize<T>()
+        public static nuint GetRawDataSize<T>()
         {
             ref MethodTable mt = ref UnsafeCore.AsRef<MethodTable>((void*)typeof(T).TypeHandle.Value);
             bool empty = mt.BaseSize != 0;
@@ -202,7 +202,7 @@ namespace IlyfairyLib.Unsafe
 
             // empty != 0 -> 1 , -1 = 0xffffffff & val = val
             // empty == 0 -> 0 , 0 & any = 0
-            return mt.BaseSize - (2 * (uint)sizeof(nuint)) & -UnsafeCore.As<bool, byte>(ref empty); // 对于 Array 类型, 由于长度在实例中, 不计算数组成员所占大小
+            return (nuint)(mt.BaseSize - (2 * (uint)sizeof(nuint)) & -UnsafeCore.As<bool, byte>(ref empty)); // 对于 Array 类型, 由于长度在实例中, 不计算数组成员所占大小
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveOptimization)]
