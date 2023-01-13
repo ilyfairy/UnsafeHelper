@@ -603,6 +603,16 @@ namespace IlyfairyLib.Unsafe
 #endif
 
 
+        public static ref T GetBoxedReference<T>(object boxedObject) where T : struct
+        {
+            return ref UnsafeCore.As<byte, T>(ref GetRawDataReference(boxedObject));
+        }
+        public static T* GetBoxedPointer<T>(object boxedObject) where T : struct
+        {
+            return (T*)GetRawDataPointer(boxedObject);
+        }
+
+
         #region Field
         /// <summary>
         /// 获取实例字段
