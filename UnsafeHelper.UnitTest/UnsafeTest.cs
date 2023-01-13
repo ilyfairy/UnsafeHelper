@@ -24,7 +24,7 @@ namespace UnsafeHelperTest
         {
             object obj = new object();
             var p1 = *(void**)&obj;
-            var p2 = UnsafeHelper.GetPointer(obj);
+            var p2 = UnsafeHelper.GetMethodTablePointer(obj);
             Assert.True(p1 == p2);
         }
 
@@ -32,7 +32,7 @@ namespace UnsafeHelperTest
         public unsafe void GetObjectMethodTable()
         {
             object obj = new object();
-            var p1 = (void*)UnsafeHelper.GetMethodTable(obj);
+            var p1 = (void*)UnsafeHelper.GetMethodTablePointer(obj);
             var p2 = (void*)typeof(object).TypeHandle.Value;
             Assert.True(p1 == p2);
         }
@@ -44,7 +44,7 @@ namespace UnsafeHelperTest
             {
                 A = 0x123456
             };
-            var a = *(int*)UnsafeHelper.GetObjectRawDataAddress(ic);
+            var a = *(int*)UnsafeHelper.GetRawDataPointer(ic);
             Assert.True(a == 0x123456);
         }
 

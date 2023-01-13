@@ -175,14 +175,8 @@ namespace IlyfairyLib.Unsafe
         public static long GetRawDataSize(object obj)
         {
             [DoesNotReturn]
-            static void Throw()
-            {
-                throw new ArgumentNullException(nameof(obj));
-            }
-            if (obj == null)
-            {
-                Throw();
-            }
+            static void Throw() => throw new ArgumentNullException(nameof(obj));
+            if (obj == null) Throw();
             ref MethodTable mt = ref GetMethodTableReference(obj);
             nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
             if ((mt.Flags >> 31) != 0)
@@ -232,14 +226,8 @@ namespace IlyfairyLib.Unsafe
         public static T? Clone<T>(this T obj) where T : class
         {
             [DoesNotReturn]
-            static void Throw()
-            {
-                throw new ArgumentNullException(nameof(obj));
-            }
-            if (obj == null)
-            {
-                Throw();
-            }
+            static void Throw() => throw new ArgumentNullException(nameof(obj));
+            if (obj == null) Throw();
             T? newObj = CloneEmptyObject(obj); //克隆对象
             if (newObj == null) return null;
             nuint size = (nuint)GetRawDataSize(obj); //长度
@@ -602,11 +590,22 @@ namespace IlyfairyLib.Unsafe
         public static void Copy(void* source,void* destination, nuint size) => Buffer.MemoryCopy(source, destination, size, size);
 #endif
 
-
+        /// <summary>
+        /// 获取已装箱的值类型的引用
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="boxedObject">已装箱的值类型</param>
+        /// <returns></returns>
         public static ref T GetBoxedReference<T>(object boxedObject) where T : struct
         {
             return ref UnsafeCore.As<byte, T>(ref GetRawDataReference(boxedObject));
         }
+        /// <summary>
+        /// 获取已装箱的值类型的指针
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="boxedObject">已装箱的值类型</param>
+        /// <returns></returns>
         public static T* GetBoxedPointer<T>(object boxedObject) where T : struct
         {
             return (T*)GetRawDataPointer(boxedObject);
@@ -631,9 +630,25 @@ namespace IlyfairyLib.Unsafe
         /// <exception cref="NotSupportedException">无法获取m_fieldHandle偏移地址</exception>
         public static int GetFieldOffset(Type type, string fieldName)
         {
+            [DoesNotReturn]
+            static void Throw() => throw new Exception($"not found field: {nameof(fieldName)}");
             if (m_fieldHandle_offset < 0) throw new NotSupportedException();
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-            if (fieldInfo == null) return -1;
+            if (fieldInfo == null) Throw();
+            return GetFieldOffset(fieldInfo);
+        }
+        
+        /// <summary>
+        /// 获取字段偏移
+        /// 最大只能获取到65535的偏移
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException">无法获取m_fieldHandle偏移地址</exception>
+        public static int GetFieldOffset(FieldInfo fieldInfo)
+        {
+            [DoesNotReturn]
+            static void Throw() => throw new ArgumentNullException(nameof(fieldInfo));
+            if (fieldInfo is null) Throw();
             byte* fieldInfoAddr = GetRawDataPointer(fieldInfo);
             IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
             return *(ushort*)(fieldHandle + sizeof(IntPtr) + 4);
