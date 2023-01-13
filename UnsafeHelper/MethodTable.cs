@@ -88,6 +88,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         public ref ushort ComponentSize => ref ComponentSize_Flags.ComponentSize; // offset:0
         /// <summary>
+        /// EETypeFlags<br/>
         /// 当前<see cref="MethodTable"/>的Flag (仅适用于非<see cref="System.Array"/>或<see cref="System.String"/>)
         /// </summary>
         public ref uint Flags => ref ComponentSize_Flags.Flags; // offset:0

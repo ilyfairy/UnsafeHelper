@@ -104,14 +104,15 @@ namespace IlyfairyLib.Unsafe
         //}
 
         /// <summary>
-        /// 获取对象实例的地址(Handle的位置)
+        /// 获取对象实例的地址(<see cref="MethodTable"/>**)
         /// </summary>
         /// <param name="obj"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void* GetPointer(object obj)
+        public static MethodTable** GetPointer(object obj)
         {
-            return UnsafeCore.AsPointer(ref UnsafeCore.Add(ref GetRawDataReference(obj), -1));
+            //return (MethodTable**)UnsafeCore.AsPointer(ref UnsafeCore.Add(ref GetRawDataReference(obj), -sizeof(nint)));
+            return *(MethodTable***)&obj;
         }
         #endregion
 
@@ -187,13 +188,18 @@ namespace IlyfairyLib.Unsafe
         }
 
         /// <summary>
-        /// 获取对象的数据区域在堆中的大小
+        /// 获取对象的数据区域在堆中的大小, 不计算<see cref="System.Array"/>和<see cref="System.String"/>的成员大小
         /// </summary>
         /// <returns></returns>
         public static long GetRawDataSize<T>()
         {
             ref MethodTable mt = ref UnsafeCore.AsRef<MethodTable>((void*)typeof(T).TypeHandle.Value);
-            bool empty = mt.BaseSize == 0;
+            bool empty = mt.BaseSize != 0;
+            //if (empty) return 0;
+            //return mt.BaseSize - (sizeof(nint) * 2);
+
+            // empty != 0 -> 1 , -1 = 0xffffffff & val = val
+            // empty == 0 -> 0 , 0 & any = 0
             return mt.BaseSize - (2 * (uint)sizeof(nuint)) & -UnsafeCore.As<bool, byte>(ref empty); // 对于 Array 类型, 由于长度在实例中, 不计算数组成员所占大小
         }
 
@@ -202,7 +208,9 @@ namespace IlyfairyLib.Unsafe
         {
             ref MethodTable mt = ref GetMethodTableReference(obj);
             nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
-            if ((mt.Flags >> 31) != 0)
+            //if ((mt.Flags >> 31) != 0) // HasComponentSizeFlag = 0x80000000
+            //if (BitConverter.IsLittleEndian ? (mt.Flags >> 31) != 0 : (uint)(byte)mt.Flags >> 31 != 0)
+            if((int)mt.Flags < 0)
             {
                 rawSize += UnsafeCore.As<byte, uint>(ref GetRawDataReference(obj)) * (nuint)mt.ComponentSize;
             }
@@ -295,9 +303,13 @@ namespace IlyfairyLib.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static object ChangeObjectHandle(object obj, Type type) // 等会儿需要反汇编
         {
-            void** p = (void**)GetPointer(obj);
-            *p = (void*)type.TypeHandle.Value;
-            return UnsafeCore.AsRef<object>(&p);
+            //*(MethodTable**)UnsafeCore.AsPointer(ref obj) = (MethodTable*)type.TypeHandle.Value; //会报错
+            //var mt = (MethodTable*)*(nint**)&obj; //x
+            //* *(nint**)&obj = type.TypeHandle.Value;
+            //*GetMethodTablePointer(obj) = (MethodTable*)type.TypeHandle.Value; //也会报错
+            //*GetPointer(obj) = (MethodTable*)type.TypeHandle.Value;
+            *(void**)GetPointer(obj) = (void*)type.TypeHandle.Value;
+            return obj;
         }
 
         /// <summary>
@@ -315,22 +327,24 @@ namespace IlyfairyLib.Unsafe
         /// 申请一个对象,通过FreeObject释放
         /// </summary>
         /// <param name="type"></param>
-        /// <param name="size"></param>
+        /// <param name="rawDataSize"></param>
         /// <returns></returns>
-        public static object AllocObject(Type type, nuint size)
+        public static object AllocObject(Type type, nuint rawDataSize)
         {
-            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
+            if (rawDataSize < 0) throw new ArgumentOutOfRangeException(nameof(rawDataSize));
+            rawDataSize += 16;
 #if NET6_0_OR_GREATER
-            var p = NativeMemory.AllocZeroed(size);
+            var p = (nint*)NativeMemory.AllocZeroed(rawDataSize);
             if (p == null) throw new OutOfMemoryException();
 #else
-            var p = Marshal.AllocHGlobal((nint)size);
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
-            Zero((void*)p, checked((nuint)size + (nuint)sizeof(IntPtr)));
+            var p = (nint*)Marshal.AllocHGlobal((nint)rawDataSize);
+            if (p == null) throw new OutOfMemoryException();
+            Zero((void*)p, checked((nuint)rawDataSize + (nuint)sizeof(IntPtr)));
 #endif
-            *(IntPtr*)p = type.TypeHandle.Value;
+            p[1] = type.TypeHandle.Value;
+            var obj = &p[1];
             //var obj = CoreUnsafe.Read<object>(&p);
-            return *(object*)&p;
+            return *(object*)&obj;
         }
 
         // TODO: nuint
@@ -385,10 +399,11 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         public static void FreeObject(object obj)
         {
+            var p = (void**)GetObjectHeaderPointer(obj);
 #if NET6_0_OR_GREATER
-            NativeMemory.Free(GetPointer(obj));
+            NativeMemory.Free(p);
 #else
-            Marshal.FreeHGlobal((nint)GetPointer(obj));
+            Marshal.FreeHGlobal((nint)p);
 #endif
         }
 

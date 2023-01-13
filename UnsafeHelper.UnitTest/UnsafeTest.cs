@@ -8,10 +8,10 @@ using Xunit;
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 namespace UnsafeHelperTest
 {
-    public class UnsafeTest
+    public unsafe class UnsafeTest
     {
         [Fact]
-        public unsafe void GetRefPointer()
+        public void GetRefPointer()
         {
             int num = 1;
             void* p1 = (void*)UnsafeHelper.GetPointer(ref num);
@@ -20,16 +20,16 @@ namespace UnsafeHelperTest
         }
 
         [Fact]
-        public unsafe void GetObjectPointer()
+        public void GetObjectPointer()
         {
             object obj = new object();
             var p1 = *(void**)&obj;
-            var p2 = UnsafeHelper.GetMethodTablePointer(obj);
+            var p2 = UnsafeHelper.GetPointer(obj);
             Assert.True(p1 == p2);
         }
 
         [Fact]
-        public unsafe void GetObjectMethodTable()
+        public void GetObjectMethodTable()
         {
             object obj = new object();
             var p1 = (void*)UnsafeHelper.GetMethodTablePointer(obj);
@@ -38,7 +38,7 @@ namespace UnsafeHelperTest
         }
 
         [Fact]
-        public unsafe void GetObjectRawDataPointer()
+        public void GetObjectRawDataPointer()
         {
             IntClass ic = new IntClass
             {
@@ -115,8 +115,8 @@ namespace UnsafeHelperTest
         public void ObjectSize()
         {
             Assert.True(UnsafeHelper.GetStructSize<Foo>() == 24);
-            Assert.True(UnsafeHelper.GetRawDataSize(new int[] { 1, 2 }) == 16);
-            Assert.True(UnsafeHelper.GetRawDataSize<ChildClass>() == IntPtr.Size * 2);
+            Assert.True(UnsafeHelper.GetRawDataSize(new int[] { 1, 2 }) == sizeof(nint) + 8);
+            Assert.True(UnsafeHelper.GetRawDataSize<ChildClass>() == (IntPtr.Size * 2));
         }
 
         [Fact]
