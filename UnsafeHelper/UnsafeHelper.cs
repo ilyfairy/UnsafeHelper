@@ -374,7 +374,7 @@ namespace IlyfairyLib.Unsafe
         {
             var rawSize = GetRawDataSize<T>();
             if (rawSize < 0) rawSize = 0;
-            var size = (uint)(rawSize + IntPtr.Size);
+            var size = (uint)(rawSize + (nuint)IntPtr.Size);
             return UnsafeCore.As<T>(AllocObject(typeof(T), (nuint)size));
         }
 
