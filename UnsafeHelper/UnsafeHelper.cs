@@ -418,10 +418,11 @@ namespace IlyfairyLib.Unsafe
         {
             var data = (
                 SyncBlock: IntPtr.Zero,
-                MethodTablePtr: typeof(int).TypeHandle.Value,
-                RawData: 20);
-            var obj = &data;
-            var clone = AllocateUninitializedClone(*(object*)&obj);
+                MethodTablePtr: type.TypeHandle.Value,
+                RawData: IntPtr.Zero);
+            var p = &data.MethodTablePtr;
+            var obj = *(object*)&p;
+            var clone = AllocateUninitializedClone(obj);
             return clone;
         }
         /// <summary>
