@@ -596,7 +596,7 @@ namespace IlyfairyLib.Unsafe
             {
                 var data = GetRawDataPointer(value);
                 var size = GetRawDataSize(value);
-                Buffer.MemoryCopy(data, (void*)ptr, size, size);
+                Copy(data, (void*)ptr, size);
             }
         }
 
