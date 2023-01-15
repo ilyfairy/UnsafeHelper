@@ -421,7 +421,7 @@ namespace IlyfairyLib.Unsafe
                 MethodTablePtr: type.TypeHandle.Value,
                 RawData: IntPtr.Zero);
             var p = &data.MethodTablePtr;
-            var obj = *(object*)&p;
+            var obj = *(object*)&p ?? throw new NotSupportedException();
             var clone = AllocateUninitializedClone(obj);
             return clone;
         }
