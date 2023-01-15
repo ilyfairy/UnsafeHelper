@@ -542,17 +542,17 @@ namespace IlyfairyLib.Unsafe
             //return *(ushort*)array.GetType().TypeHandle.Value;
         }
 
-        /// <summary>
-        /// 获取数组第0的值的指针
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="str"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T* ToPointer<T>(this T[] str) // where T : unmanaged
-        {
-            return (T*)((byte*)GetPointer(str) + (sizeof(IntPtr) * 2));
-        }
+        ///// <summary>
+        ///// 获取数组第0的值的指针
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <param name="str"></param>
+        ///// <returns></returns>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static T* ToPointer<T>(this T[] str) // where T : unmanaged
+        //{
+        //    return (T*)((byte*)GetPointer(str) + (sizeof(IntPtr) * 2));
+        //}
 
         /// <summary>
         /// 设置值
