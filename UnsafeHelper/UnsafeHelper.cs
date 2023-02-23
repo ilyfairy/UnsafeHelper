@@ -16,7 +16,7 @@ namespace IlyfairyLib.Unsafe
     }
 
     [StructLayout(LayoutKind.Explicit)]
-    public struct ObjectHeader
+    internal struct ObjectHeader
     {
 #if TARGET_64BIT
         [FieldOffset(4)]
@@ -144,15 +144,15 @@ namespace IlyfairyLib.Unsafe
 
         #region GetObjectHeader
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static void* GetObjectHeaderPointer(object obj)
+        public static uint* GetObjectHeaderPointer(object obj)
         {
-            return UnsafeCore.AsPointer(ref UnsafeCore.Add(ref UnsafeCore.As<byte, nuint>(ref GetRawDataReference(obj)), -2));
+            return (uint*)UnsafeCore.AsPointer(ref UnsafeCore.As<byte, uint>(ref UnsafeCore.Subtract(ref GetRawDataReference(obj), sizeof(nint) + 4)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static ref ObjectHeader GetObjectHeaderReference(object obj)
+        public static ref uint GetObjectHeaderReference(object obj)
         {
-            return ref UnsafeCore.As<nuint, ObjectHeader>(ref UnsafeCore.Add(ref UnsafeCore.As<byte, nuint>(ref GetRawDataReference(obj)), -2));
+            return ref UnsafeCore.As<byte, uint>(ref UnsafeCore.Subtract(ref GetRawDataReference(obj), sizeof(nint) + 4));
         }
         #endregion
 

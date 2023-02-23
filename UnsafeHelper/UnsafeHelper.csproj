@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 		<Title>UnsafeHelper</Title>
-		<Version>2.3.1</Version>
+		<Version>3.0.0</Version>
 		<Authors>ilyfairy</Authors>
 		<Description>C#不安全方法</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -12,6 +12,7 @@
 		<!--<GeneratePackageOnBuild>True</GeneratePackageOnBuild>-->
 		<LangVersion>preview</LangVersion>
 		<Platforms>AnyCPU;x86</Platforms>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<!--<OutputType>Exe</OutputType>-->
 	</PropertyGroup>
 
