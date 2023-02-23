@@ -1,48 +1,80 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace IlyfairyLib.Unsafe
 {
+    //    /// <summary>
+    //    /// 方法表
+    //    /// </summary>
     //    [StructLayout(LayoutKind.Explicit)]
     //    public unsafe struct MethodTable
     //    {
     //        public const int PtrSize =
     //#if TARGET_64BIT
-    //        8
+    //            8
     //#else
     //            4
     //#endif
     //            ;
 
+    //        /// <summary>
+    //        /// <see cref="Array"/> 或 <see langword="string"/> 的每个元素大小
+    //        /// </summary>
     //        [FieldOffset(0)]
-    //        public ushort ComponentSize;
+    //        public ushort ComponentSize; // m_dwFlags lower 16bits
 
+    //        /// <summary>
+    //        /// 低16位表示 <see cref="Array"/> 或 <see langword="string"/> 的每个元素大小
+    //        /// </summary>
     //        [FieldOffset(0)]
-    //        public uint Flags;
+    //        public uint Flags; // m_dwFlags
 
+    //        /// <summary>
+    //        /// 申请本类型实例时将使用多少字节
+    //        /// </summary>
     //        [FieldOffset(4)]
-    //        public uint BaseSize;
+    //        public uint BaseSize; // m_BaseSize
 
     //        // 0x8: m_wFlags2
 
     //        // 0xA: m_wToken
 
+    //        /// <summary>
+    //        /// 虚方法计数
+    //        /// </summary>
     //        [FieldOffset(0xC)]
-    //        public ushort VirtualsCount;
+    //        public ushort VirtualsCount; // m_wNumVirtuals
 
+    //        /// <summary>
+    //        /// 实现接口计数
+    //        /// </summary>
     //        [FieldOffset(0xE)]
-    //        public ushort InterfaceCount;
+    //        public ushort InterfaceCount; // m_wNumInterfaces
 
+    //        /// <summary>
+    //        /// 父类方法表指针
+    //        /// </summary>
     //        [FieldOffset(0x10)]
-    //        public MethodTable* ParentMethodTable;
+    //        public MethodTable* ParentMethodTable; // m_pParentMethodTable
 
+    //        /// <summary>
+    //        /// per-instantiation information
+    //        /// </summary>
     //        [FieldOffset(0x10 + 4 * PtrSize)]
-    //        public void* ElementType;
+    //        public void* PerInstInfo; // m_pPerInstInfo
 
+    //        /// <summary>
+    //        /// 数组成员类型的 <see cref="RuntimeTypeHandle.Value"/>
+    //        /// </summary>
+    //        [FieldOffset(0x10 + 4 * PtrSize)]
+    //        public void* ElementType; // m_ElementTypeHnd
+
+    //        /// <summary>
+    //        /// 实现接口方法表
+    //        /// </summary>
     //        [FieldOffset(0x10 + 5 * PtrSize)]
-    //        public MethodTable** InterfaceMap;
+    //        public MethodTable** InterfaceMap; // m_pInterfaceMap
     //    }
-
-
 
     /// <summary>
     /// Subset of src\vm\methodtable.h
@@ -56,6 +88,7 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         public ref ushort ComponentSize => ref ComponentSize_Flags.ComponentSize; // offset:0
         /// <summary>
+        /// EETypeFlags<br/>
         /// 当前<see cref="MethodTable"/>的Flag (仅适用于非<see cref="System.Array"/>或<see cref="System.String"/>)
         /// </summary>
         public ref uint Flags => ref ComponentSize_Flags.Flags; // offset:0
@@ -114,6 +147,13 @@ namespace IlyfairyLib.Unsafe
 
             [FieldOffset(0)]
             public uint Flags;
+        }
+
+
+        public bool IsValueType
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (Flags & 0xc0000U) == 0x40000U;
         }
     }
 }

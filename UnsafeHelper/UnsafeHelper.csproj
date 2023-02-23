@@ -3,17 +3,20 @@
 	<PropertyGroup>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 		<Title>UnsafeHelper</Title>
-		<Version>2.3.1</Version>
+		<Version>3.0.0</Version>
 		<Authors>ilyfairy</Authors>
 		<Description>C#不安全方法</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+		<TargetFrameworks>net5.0;net6.0;net7.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
-		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<!--<GeneratePackageOnBuild>True</GeneratePackageOnBuild>-->
 		<LangVersion>preview</LangVersion>
+		<Platforms>AnyCPU;x86</Platforms>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<!--<OutputType>Exe</OutputType>-->
 	</PropertyGroup>
 
-	<!--<PropertyGroup Condition="'$(PlatformTarget)' == 'AnyCPU' or '$(PlatformTarget)' == ''">
+	<PropertyGroup Condition="'$(PlatformTarget)' == 'AnyCPU' or '$(PlatformTarget)' == ''">
 		<Prefer32Bit>false</Prefer32Bit>
 		<DefineConstants>TARGET_64BIT;$(DefineConstants)</DefineConstants>
 	</PropertyGroup>
@@ -22,10 +25,6 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(PlatformTarget)' == 'x64'">
 		<DefineConstants>TARGET_64BIT;$(DefineConstants)</DefineConstants>
-	</PropertyGroup>-->
+	</PropertyGroup>
 
-	<ItemGroup>
-	  <ProjectReference Include="..\UnsafeHelper.IL\UnsafeHelper.IL.ilproj" />
-	</ItemGroup>
-	
 </Project>

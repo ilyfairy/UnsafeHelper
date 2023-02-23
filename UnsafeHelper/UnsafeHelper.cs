@@ -1,14 +1,31 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using IlyfairyLib.Unsafe.Internal;
+//using IlyfairyLib.Unsafe.Internal;
 using UnsafeCore = System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 namespace IlyfairyLib.Unsafe
 {
+    internal sealed class RawData
+    {
+        public byte Data;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    internal struct ObjectHeader
+    {
+#if TARGET_64BIT
+        [FieldOffset(4)]
+#else
+        [FieldOffset(0)]
+#endif
+        public uint SyncBlockValue;
+    }
+
     /// <summary>
     /// Unsafe的工具方法
     /// </summary>
@@ -18,11 +35,37 @@ namespace IlyfairyLib.Unsafe
         private static readonly Func<object, object>? AllocateUninitializedClone;
         private static readonly int m_fieldHandle_offset = -1; // RtFieldInfo中的m_fieldHandle的偏移地址
 
+        private static readonly delegate* unmanaged<object, object> AllocateUninitializedClone2;
+
+        //static UnsafeHelper()
+        //{
+        //    RuntimeHelpersType = typeof(RuntimeHelpers);
+        //    AllocateUninitializedClone = (Func<object, object>?)RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic)?.CreateDelegate(typeof(Func<object, object>));
+
+        //    //获取RtFieldInfo中的m_fieldHandle
+        //    //var info = typeof(UnsafeHelper).GetField("m_fieldHandle_offset", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static); //只是为了获取一个RtFieldInfo实例
+        //    //var m_fieldHandleInfo = info.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        //    var m_fieldHandleInfo = typeof(FieldInfo).Assembly.GetType("System.Reflection.RtFieldInfo")?.GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        //    if (m_fieldHandleInfo == null) return;
+        //    var addr = (IntPtr*)GetObjectRawDataAddress(m_fieldHandleInfo);
+        //    var m_fieldHandle = (IntPtr)m_fieldHandleInfo.GetValue(m_fieldHandleInfo)!;
+
+        //    //获取m_fieldHandle的偏移地址
+        //    int size = (int)GetObjectRawDataSize(m_fieldHandleInfo);
+        //    for (int i = 0; i < size; i += 1)
+        //    {
+        //        if (m_fieldHandle == addr[i])
+        //        {
+        //            m_fieldHandle_offset = i * sizeof(IntPtr);
+        //            break;
+        //        }
+        //    }
+        //}
+
         static UnsafeHelper()
         {
             RuntimeHelpersType = typeof(RuntimeHelpers);
             AllocateUninitializedClone = (Func<object, object>?)RuntimeHelpersType.GetMethod("AllocateUninitializedClone", BindingFlags.Static | BindingFlags.NonPublic)?.CreateDelegate(typeof(Func<object, object>));
-
             //获取RtFieldInfo中的m_fieldHandle
             //var info = typeof(UnsafeHelper).GetField("m_fieldHandle_offset", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static); //只是为了获取一个RtFieldInfo实例
             //var m_fieldHandleInfo = info.GetType().GetField("m_fieldHandle", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
@@ -50,6 +93,7 @@ namespace IlyfairyLib.Unsafe
         /// <typeparam name="T"></typeparam>
         /// <param name="val"></param>
         /// <returns>address</returns>
+        [Obsolete]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte* GetPointer<T>(ref T val) => (byte*)UnsafeCore.AsPointer(ref val);
         //{
@@ -60,12 +104,16 @@ namespace IlyfairyLib.Unsafe
         //}
 
         /// <summary>
-        /// 获取对象实例的地址(Handle的位置)
+        /// 获取对象实例的地址(<see cref="MethodTable"/>**)
         /// </summary>
         /// <param name="obj"></param>
         /// <returns>address</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte* GetPointer(object obj) => (byte*)IL.GetPointer(obj);
+        public static MethodTable** GetPointer(object obj)
+        {
+            //return (MethodTable**)UnsafeCore.AsPointer(ref UnsafeCore.Add(ref GetRawDataReference(obj), -sizeof(nint)));
+            return *(MethodTable***)&obj;
+        }
         #endregion
 
         #region GetRawData
@@ -75,22 +123,37 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref byte GetRawDataReference(object obj) => ref (*((byte*)GetPointer(obj) + IntPtr.Size));
+        public static ref byte GetRawDataReference(object obj) => ref UnsafeCore.As<RawData>(obj).Data;
 
+        /// <summary>
+        /// 获取对象数据区域的地址
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte* GetRawDataPointer(object obj) => (byte*)GetPointer(obj) + sizeof(nint);
+        public static byte* GetRawDataPointer(object obj) => (byte*)UnsafeCore.AsPointer(ref GetRawDataReference(obj));
         #endregion
 
         #region GetMethodTable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref MethodTable GetMethodTableReference(object obj) => ref UnsafeCore.As<byte,MethodTable>(ref IL.GetMethodTableReference(obj));
+        public static ref MethodTable GetMethodTableReference(object obj) => ref UnsafeCore.AsRef<MethodTable>(GetMethodTablePointer(obj));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static MethodTable* GetMethodTable(object obj) => (MethodTable*)IL.GetMethodTable(obj);
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static MethodTable* GetMethodTablePointer(object obj) => (MethodTable*)UnsafeCore.Add(ref UnsafeCore.As<byte, nuint>(ref GetRawDataReference(obj)), -1);
         #endregion
 
         #region GetObjectHeader
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static uint* GetObjectHeaderPointer(object obj)
+        {
+            return (uint*)UnsafeCore.AsPointer(ref UnsafeCore.As<byte, uint>(ref UnsafeCore.Subtract(ref GetRawDataReference(obj), sizeof(nint) + 4)));
+        }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static ref uint GetObjectHeaderReference(object obj)
+        {
+            return ref UnsafeCore.As<byte, uint>(ref UnsafeCore.Subtract(ref GetRawDataReference(obj), sizeof(nint) + 4));
+        }
         #endregion
 
         /// <summary>
@@ -101,8 +164,8 @@ namespace IlyfairyLib.Unsafe
         public static Span<T> GetObjectRawDataAsSpan<T>(object obj) where T : unmanaged
         {
             byte* first = GetRawDataPointer(obj);
-            ulong size = (ulong)GetRawDataSize(obj) / (ulong)sizeof(T);
-            return new Span<T>((void*)first, checked((int)size));
+            nuint size = (nuint)GetRawDataSize(obj) / (uint)sizeof(T);
+            return new Span<T>(first, checked((int)size));
         }
 
         /// <summary>
@@ -110,38 +173,51 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static long GetRawDataSize(object obj)
+        public static nuint GetRawDataSize(object obj)
         {
-            if (obj == null) throw new ArgumentNullException(nameof(obj));
-            byte* objptr = GetPointer(obj);
-            byte* rawDataPtr = objptr + sizeof(nint);
-            nint objTable = *(nint*)objptr;
-            long size = (*(uint*)(objTable + 4)) - (2 * sizeof(nint));
-            if ((*(uint*)objTable & 2147483648U) > 0)
+            [DoesNotReturn]
+            static void Throw() => throw new ArgumentNullException(nameof(obj));
+            if (obj == null) Throw();
+            ref MethodTable mt = ref GetMethodTableReference(obj);
+            nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
+            //if ((mt.Flags >> 31) != 0) // HasComponentSizeFlag = 0x80000000
+            //if (BitConverter.IsLittleEndian ? (mt.Flags >> 31) != 0 : (uint)(byte)mt.Flags >> 31 != 0)
+            if ((int)mt.Flags < 0)
             {
-                size += ((long)(*(ushort*)objTable) * (*(uint*)rawDataPtr));
+                rawSize += UnsafeCore.As<byte, uint>(ref GetRawDataReference(obj)) * (nuint)mt.ComponentSize;
             }
-            if (size < 0) size = -1;
-            //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
-            return size;
+            return rawSize;
         }
 
         /// <summary>
-        /// 获取对象的数据区域在堆中的大小
+        /// 获取对象的数据区域在堆中的大小, 不计算<see cref="System.Array"/>和<see cref="System.String"/>的成员大小
         /// </summary>
         /// <returns></returns>
-        public static long GetRawDataSize<T>()
+        public static nuint GetRawDataSize<T>()
         {
-            nint methodTable = typeof(T).TypeHandle.Value;    
-            long size = (*(uint*)(methodTable + 4)) - (2 * sizeof(nint));
-            if (size < 0) size = 0;
-            //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr) + (*(ushort*)objTable * *(uint*)rawDataP);
-            return size;
-            //IntPtr objTable = typeof(T).TypeHandle.Value;
-            //long size = *(uint*)(objTable + 4) - 2 * sizeof(IntPtr);
-            //if (size < 0) size = -1;
-            //return size;
+            ref MethodTable mt = ref UnsafeCore.AsRef<MethodTable>((void*)typeof(T).TypeHandle.Value);
+            bool empty = mt.BaseSize != 0;
+            //if (empty) return 0;
+            //return mt.BaseSize - (sizeof(nint) * 2);
+
+            // empty != 0 -> 1 , -1 = 0xffffffff & val = val
+            // empty == 0 -> 0 , 0 & any = 0
+            return (nuint)(mt.BaseSize - (2 * (uint)sizeof(nuint)) & -UnsafeCore.As<bool, byte>(ref empty)); // 对于 Array 类型, 由于长度在实例中, 不计算数组成员所占大小
         }
+
+        //[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        //public static nuint GetRawObjectDataSize(object obj) // System.Runtime.CompilerServices.RuntimeHelpers.GetRawObjectDataSize
+        //{
+        //    ref MethodTable mt = ref GetMethodTableReference(obj);
+        //    nuint rawSize = mt.BaseSize - (uint)(2 * sizeof(nuint));
+        //    //if ((mt.Flags >> 31) != 0) // HasComponentSizeFlag = 0x80000000
+        //    //if (BitConverter.IsLittleEndian ? (mt.Flags >> 31) != 0 : (uint)(byte)mt.Flags >> 31 != 0)
+        //    if((int)mt.Flags < 0)
+        //    {
+        //        rawSize += UnsafeCore.As<byte, uint>(ref GetRawDataReference(obj)) * (nuint)mt.ComponentSize;
+        //    }
+        //    return rawSize;
+        //}
 
         /// <summary>
         /// 获取结构体大小
@@ -159,13 +235,15 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static T? Clone<T>(this T obj) where T : class
         {
-            if (obj == null) throw new ArgumentNullException(nameof(obj));
+            [DoesNotReturn]
+            static void Throw() => throw new ArgumentNullException(nameof(obj));
+            if (obj == null) Throw();
             T? newObj = CloneEmptyObject(obj); //克隆对象
             if (newObj == null) return null;
-            long size = GetRawDataSize(obj); //长度
+            nuint size = (nuint)GetRawDataSize(obj); //长度
             byte* oldPtr = GetRawDataPointer(obj); //旧的地址
             byte* newPtr = GetRawDataPointer(newObj); //新的地址
-            Buffer.MemoryCopy((void*)oldPtr, (void*)newPtr, size, size);
+            Buffer.MemoryCopy(oldPtr, newPtr, size, size);
             GC.KeepAlive(obj);
             return newObj;
         }
@@ -225,9 +303,14 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         /// <param name="type"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static object ChangeObjectHandle(object obj, Type type)
+        public static object ChangeObjectHandle(object obj, Type type) // 等会儿需要反汇编
         {
-            *(IntPtr*)GetPointer(obj) = type.TypeHandle.Value;
+            //*(MethodTable**)UnsafeCore.AsPointer(ref obj) = (MethodTable*)type.TypeHandle.Value; //会报错
+            //var mt = (MethodTable*)*(nint**)&obj; //x
+            //* *(nint**)&obj = type.TypeHandle.Value;
+            //*GetMethodTablePointer(obj) = (MethodTable*)type.TypeHandle.Value; //也会报错
+            //*GetPointer(obj) = (MethodTable*)type.TypeHandle.Value;
+            *(void**)GetPointer(obj) = (void*)type.TypeHandle.Value;
             return obj;
         }
 
@@ -246,23 +329,24 @@ namespace IlyfairyLib.Unsafe
         /// 申请一个对象,通过FreeObject释放
         /// </summary>
         /// <param name="type"></param>
-        /// <param name="size"></param>
+        /// <param name="rawDataSize"></param>
         /// <returns></returns>
-        public static object AllocObject(Type type, nint size)
+        public static object AllocObject(Type type, nuint rawDataSize)
         {
-            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
+            if (rawDataSize < 0) throw new ArgumentOutOfRangeException(nameof(rawDataSize));
+            rawDataSize += 16;
 #if NET6_0_OR_GREATER
-            var p = (IntPtr)NativeMemory.AllocZeroed(((UIntPtr)(ulong)size + sizeof(IntPtr)));
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
+            var p = (nint*)NativeMemory.AllocZeroed(rawDataSize);
+            if (p == null) throw new OutOfMemoryException();
 #else
-            var p = (IntPtr)Marshal.AllocHGlobal((size + sizeof(IntPtr)));
-            if (p == IntPtr.Zero) throw new OutOfMemoryException();
-            Zero((void*)p, checked((nuint)size + (nuint)sizeof(IntPtr)));
+            var p = (nint*)Marshal.AllocHGlobal((nint)rawDataSize);
+            if (p == null) throw new OutOfMemoryException();
+            Zero((void*)p, checked((nuint)rawDataSize + (nuint)sizeof(IntPtr)));
 #endif
-            *(IntPtr*)p = type.TypeHandle.Value;
+            p[1] = type.TypeHandle.Value;
+            var obj = &p[1];
             //var obj = CoreUnsafe.Read<object>(&p);
-            var obj = IL.As<object>(p);
-            return obj;
+            return *(object*)&obj;
         }
 
         // TODO: nuint
@@ -276,9 +360,10 @@ namespace IlyfairyLib.Unsafe
         /// </summary>
         /// <param name="size"></param>
         /// <returns></returns>
-        public static T AllocObject<T>(IntPtr size) where T : class
+        public static T AllocObject<T>(nuint size) where T : class
         {
-            return UnsafeCore.As<T>(AllocObject(typeof(T), size));
+            object obj = AllocObject(typeof(T), size);
+            return UnsafeCore.As<object, T>(ref obj);
         }
 
         /// <summary>
@@ -289,8 +374,8 @@ namespace IlyfairyLib.Unsafe
         {
             var rawSize = GetRawDataSize<T>();
             if (rawSize < 0) rawSize = 0;
-            var size = (IntPtr)(rawSize + IntPtr.Size);
-            return UnsafeCore.As<T>(AllocObject(typeof(T), size));
+            var size = (uint)(rawSize + (nuint)IntPtr.Size);
+            return UnsafeCore.As<T>(AllocObject(typeof(T), (nuint)size));
         }
 
         /// <summary>
@@ -301,14 +386,13 @@ namespace IlyfairyLib.Unsafe
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static void Zero(void* p, nuint size)
         {
-            //if ((void*)size < (void*)0) throw new ArgumentOutOfRangeException(nameof(size));
-            while (size > (nuint)int.MaxValue)
+            while (size > uint.MaxValue)
             {
-                new Span<byte>(p, int.MaxValue).Clear();
-                size -= int.MaxValue;
-                p = (byte*)p + int.MaxValue;
+                MemoryMarshal.CreateSpan<byte>(ref *(byte*)p, -1).Clear();
+                size -= uint.MaxValue;
+                p = (byte*)p + uint.MaxValue;
             }
-            new Span<byte>(p, (int)size).Clear();
+            MemoryMarshal.CreateSpan<byte>(ref *(byte*)p, (int)size).Clear();
         }
 
         /// <summary>
@@ -317,10 +401,11 @@ namespace IlyfairyLib.Unsafe
         /// <param name="obj"></param>
         public static void FreeObject(object obj)
         {
+            var p = (void**)GetObjectHeaderPointer(obj);
 #if NET6_0_OR_GREATER
-            NativeMemory.Free(GetPointer(obj));
+            NativeMemory.Free(p);
 #else
-            Marshal.FreeHGlobal((nint)GetPointer(obj));
+            Marshal.FreeHGlobal((nint)p);
 #endif
         }
 
@@ -331,9 +416,13 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static unsafe object NewObject(Type type)
         {
-            var data = (type.TypeHandle.Value, IntPtr.Zero, IntPtr.Zero); // handle data ptr
-            data.Item3 = new IntPtr(&data);
-            var clone = AllocateUninitializedClone(IL.As<object>(data.Item3));
+            var data = (
+                SyncBlock: IntPtr.Zero,
+                MethodTablePtr: type.TypeHandle.Value,
+                RawData: IntPtr.Zero);
+            var p = &data.MethodTablePtr;
+            var obj = *(object*)&p ?? throw new NotSupportedException();
+            var clone = AllocateUninitializedClone(obj);
             return clone;
         }
         /// <summary>
@@ -353,55 +442,29 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static Span<char> AsSpan(string str)
         {
-            fixed (char* p = str)
-            {
-                return new Span<char>(p, str.Length);
-            }
-            //return new Span<char>((GetObjectRawDataAddress(text) + 4).ToPointer(), text.Length);
+            var span = str.AsSpan();
+            return MemoryMarshal.CreateSpan<char>(ref MemoryMarshal.GetReference(span), span.Length);
         }
 
-        /// <summary>
-        /// 比较两个对象的原始数据是否相等<br/>不比较类型
-        /// </summary>
-        /// <param name="obj1"></param>
-        /// <param name="obj2"></param>
-        /// <returns></returns>
-        public static bool CompareRaw(object obj1, object obj2)
-        {
-            long obj1size = UnsafeHelper.GetRawDataSize(obj1);
-            long obj2size = UnsafeHelper.GetRawDataSize(obj2);
-            if (obj1size != obj2size) return false;
+        ///// <summary>
+        ///// 比较两个对象的原始数据是否相等<br/>不比较类型
+        ///// </summary>
+        ///// <param name="obj1"></param>
+        ///// <param name="obj2"></param>
+        ///// <returns></returns>
+        //public static bool CompareRaw(object obj1, object obj2)
+        //{
+        //    long obj1size = UnsafeHelper.GetRawDataSize(obj1);
+        //    long obj2size = UnsafeHelper.GetRawDataSize(obj2);
+        //    if (obj1size != obj2size) return false;
 
-            ulong lenByte = (uint)obj1size;
-            byte* r1 = GetRawDataPointer(obj1);
-            byte* r2 = GetRawDataPointer(obj2);
+        //    ulong lenByte = (uint)obj1size;
+        //    byte* r1 = GetRawDataPointer(obj1);
+        //    byte* r2 = GetRawDataPointer(obj2);
 
-            void* p1 = (void*)r1, p2 = (void*)r2;
-            if (lenByte % 8 == 0)
-            {
-                var a = new Span<Int64>(p1, (int)(lenByte / 8));
-                var b = new Span<Int64>(p2, (int)(lenByte / 8));
-                return a.SequenceEqual(b);
-            }
-            else if (lenByte % 4 == 0)
-            {
-                var a = new Span<Int32>(p1, (int)(lenByte / 4));
-                var b = new Span<Int32>(p2, (int)(lenByte / 4));
-                return a.SequenceEqual(b);
-            }
-            else if (lenByte % 2 == 0)
-            {
-                var a = new Span<Int16>(p1, (int)(lenByte / 2));
-                var b = new Span<Int16>(p2, (int)(lenByte / 2));
-                return a.SequenceEqual(b);
-            }
-            else
-            {
-                var a = new Span<Byte>(p1, (int)lenByte);
-                var b = new Span<Byte>(p2, (int)lenByte);
-                return a.SequenceEqual(b);
-            }
-        }
+        //    return true;
+        //    // Call SpanHelpers.SequenceEqual
+        //}
 
         /// <summary>
         /// 将[多维]数组转换为Span
@@ -442,9 +505,9 @@ namespace IlyfairyLib.Unsafe
             byte* old = GetRawDataPointer(parentObj);
             byte* data = GetRawDataPointer(childObj);
 
-            long len = GetRawDataSize(parentObj);
+            var len = GetRawDataSize(parentObj);
 
-            Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
+            Copy((void*)old, (void*)data, len);
         }
 
         /// <summary>
@@ -463,9 +526,9 @@ namespace IlyfairyLib.Unsafe
             byte* old = GetRawDataPointer(childObj);
             byte* data = GetRawDataPointer(parentObj);
 
-            long len = GetRawDataSize(parentObj);
+            var len = GetRawDataSize(parentObj);
 
-            Buffer.MemoryCopy((void*)old, (void*)data, (ulong)len, (ulong)len);
+            Copy((void*)old, (void*)data, len);
         }
 
         /// <summary>
@@ -475,20 +538,21 @@ namespace IlyfairyLib.Unsafe
         /// <returns></returns>
         public static int GetArrayItemSize(Array array)
         {
-            return *(ushort*)array.GetType().TypeHandle.Value;
+            return GetMethodTablePointer(array)->ComponentSize;
+            //return *(ushort*)array.GetType().TypeHandle.Value;
         }
 
-        /// <summary>
-        /// 获取数组第0的值的指针
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="str"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T* ToPointer<T>(this T[] str) // where T : unmanaged
-        {
-            return (T*)(GetPointer(str) + (sizeof(IntPtr) * 2));
-        }
+        ///// <summary>
+        ///// 获取数组第0的值的指针
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <param name="str"></param>
+        ///// <returns></returns>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static T* ToPointer<T>(this T[] str) // where T : unmanaged
+        //{
+        //    return (T*)((byte*)GetPointer(str) + (sizeof(IntPtr) * 2));
+        //}
 
         /// <summary>
         /// 设置值
@@ -532,17 +596,38 @@ namespace IlyfairyLib.Unsafe
             {
                 var data = GetRawDataPointer(value);
                 var size = GetRawDataSize(value);
-                Buffer.MemoryCopy(data, (void*)ptr, size, size);
+                Copy(data, (void*)ptr, size);
             }
         }
 
 #if NET7_0_OR_GREATER
-        public static void Copy(void* source,void* destination, nint size) => NativeMemory.Copy(source, destination, size, size);
-        public static void Copy(void* source,void* destination, nuint size) => NativeMemory.Copy(source, destination, size, size);
+        public static void Copy(void* source,void* destination, nint size) => NativeMemory.Copy(source, destination, checked((nuint)size));
+        public static void Copy(void* source,void* destination, nuint size) => NativeMemory.Copy(source, destination, size);
 #else
         public static void Copy(void* source,void* destination, nint size) => Buffer.MemoryCopy(source, destination, size, size);
         public static void Copy(void* source,void* destination, nuint size) => Buffer.MemoryCopy(source, destination, size, size);
 #endif
+
+        /// <summary>
+        /// 获取已装箱的值类型的引用
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="boxedObject">已装箱的值类型</param>
+        /// <returns></returns>
+        public static ref T GetBoxedReference<T>(object boxedObject) where T : struct
+        {
+            return ref UnsafeCore.As<byte, T>(ref GetRawDataReference(boxedObject));
+        }
+        /// <summary>
+        /// 获取已装箱的值类型的指针
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="boxedObject">已装箱的值类型</param>
+        /// <returns></returns>
+        public static T* GetBoxedPointer<T>(object boxedObject) where T : struct
+        {
+            return (T*)GetRawDataPointer(boxedObject);
+        }
 
 
         #region Field
@@ -555,6 +640,7 @@ namespace IlyfairyLib.Unsafe
 
         /// <summary>
         /// 获取字段偏移
+        /// 最大只能获取到65535的偏移
         /// </summary>
         /// <param name="type"></param>
         /// <param name="fieldName"></param>
@@ -562,9 +648,25 @@ namespace IlyfairyLib.Unsafe
         /// <exception cref="NotSupportedException">无法获取m_fieldHandle偏移地址</exception>
         public static int GetFieldOffset(Type type, string fieldName)
         {
+            [DoesNotReturn]
+            static void Throw() => throw new Exception($"not found field: {nameof(fieldName)}");
             if (m_fieldHandle_offset < 0) throw new NotSupportedException();
             var fieldInfo = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-            if (fieldInfo == null) return -1;
+            if (fieldInfo == null) Throw();
+            return GetFieldOffset(fieldInfo);
+        }
+        
+        /// <summary>
+        /// 获取字段偏移
+        /// 最大只能获取到65535的偏移
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException">无法获取m_fieldHandle偏移地址</exception>
+        public static int GetFieldOffset(FieldInfo fieldInfo)
+        {
+            [DoesNotReturn]
+            static void Throw() => throw new ArgumentNullException(nameof(fieldInfo));
+            if (fieldInfo is null) Throw();
             byte* fieldInfoAddr = GetRawDataPointer(fieldInfo);
             IntPtr fieldHandle = *(IntPtr*)(fieldInfoAddr + m_fieldHandle_offset);
             return *(ushort*)(fieldHandle + sizeof(IntPtr) + 4);
