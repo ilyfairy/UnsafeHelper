@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace IlyfairyLib.Unsafe
@@ -125,7 +126,7 @@ namespace IlyfairyLib.Unsafe
         //[FieldOffset(0x10)]
         public MethodTable* ParentMethodTable; //offset:16  
 
-        private nint unknown1, unknown2, unknown3;
+        public nint m_pLoaderModule, m_pWriteableData, m_pEEClass;
 
         /// <summary>
         /// 数组成员类型的<see cref="MethodTable"/>
@@ -155,5 +156,10 @@ namespace IlyfairyLib.Unsafe
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (Flags & 0xc0000U) == 0x40000U;
         }
+
+        public static MethodTable* FromType(Type type)
+        {
+            return (MethodTable*)type.TypeHandle.Value;
+		}
     }
 }
